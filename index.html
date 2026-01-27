@@ -1,0 +1,79 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#0f0f0f">
+    <meta name="description" content="Tracker - The ultimate YouTube playlist progress manager. Organize your learning, track your growth, and master your courses.">
+    <title>Tracker | YouTube Playlist Pro-Tracker</title>
+    
+    <!-- YouTube IFrame API -->
+    <script src="https://www.youtube.com/iframe_api"></script>
+    
+    <!-- Tailwind and Fonts -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+      @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+      
+      :root {
+        --bg-color: #0f0f0f;
+      }
+
+      body {
+        font-family: 'Inter', sans-serif;
+        background-color: var(--bg-color);
+        color: #ffffff;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+      }
+
+      /* Custom Scrollbar */
+      ::-webkit-scrollbar {
+        width: 6px;
+      }
+      ::-webkit-scrollbar-track {
+        background: #0f0f0f;
+      }
+      ::-webkit-scrollbar-thumb {
+        background: #272727;
+        border-radius: 10px;
+      }
+      ::-webkit-scrollbar-thumb:hover {
+        background: #3f3f3f;
+      }
+
+      /* Selection Color */
+      ::selection {
+        background: rgba(220, 38, 38, 0.3);
+        color: white;
+      }
+    </style>
+
+    <script type="importmap">
+{
+  "imports": {
+    "lucide-react": "https://esm.sh/lucide-react@^0.562.0",
+    "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
+    "react/": "https://esm.sh/react@^19.2.3/",
+    "react": "https://esm.sh/react@^19.2.3",
+    "dexie": "https://esm.sh/dexie@^4.2.1",
+    "@google/genai": "https://esm.sh/@google/genai@^1.37.0"
+  }
+}
+</script>
+<link rel="stylesheet" href="/index.css">
+</head>
+<body class="overflow-hidden">
+    <div id="root">
+      <!-- Loading Placeholder -->
+      <div class="h-screen w-screen flex items-center justify-center bg-[#0f0f0f]">
+        <div class="flex flex-col items-center gap-4">
+          <div class="w-12 h-12 border-4 border-red-600 border-t-transparent rounded-full animate-spin"></div>
+          <p class="text-zinc-500 text-xs font-bold uppercase tracking-[0.3em] animate-pulse">Initializing Tracker</p>
+        </div>
+      </div>
+    </div>
+<script type="module" src="/index.tsx"></script>
+</body>
+</html>
