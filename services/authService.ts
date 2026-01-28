@@ -1,4 +1,5 @@
 import { supabase } from './supabaseClient';
+import { db } from '../db';
 
 export interface AuthUser {
   id: string;
@@ -69,9 +70,22 @@ export const signInWithEmail = async (email: string, password: string) => {
 };
 
 /**
- * Sign out current user
+ * Sign out current user and clear all local data
  */
 export const signOut = async () => {
+  try {
+    // Clear all data from IndexedDB for privacy
+    await db.transaction('rw', [db.playlists, db.videos, db.progress, db.notes], async () => {
+      await db.playlists.clear();
+      await db.videos.clear();
+      await db.progress.clear();
+      await db.notes.clear();
+    });
+    console.log('✅ Local data cleared');
+  } catch (err) {
+    console.warn('Warning: Could not clear local data:', err);
+  }
+
   const { error } = await supabase.auth.signOut();
 
   if (error) {
