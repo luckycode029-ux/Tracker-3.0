@@ -20,9 +20,44 @@ CREATE TABLE IF NOT EXISTS user_progress (
   UNIQUE(user_id, video_id, playlist_id)
 );
 
+-- Table for user playlists (cross-device sync)
+CREATE TABLE IF NOT EXISTS user_playlists (
+  id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id uuid REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
+  playlist_id text NOT NULL,
+  title text NOT NULL,
+  description text,
+  thumbnail text,
+  video_count integer DEFAULT 0,
+  last_accessed timestamptz DEFAULT now(),
+  created_at timestamptz DEFAULT now(),
+  UNIQUE(user_id, playlist_id)
+);
+
+-- Table for video notes (AI-generated summaries)
+CREATE TABLE IF NOT EXISTS video_notes (
+  id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id uuid REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
+  video_id text NOT NULL,
+  playlist_id text NOT NULL,
+  topic text NOT NULL,
+  source text,
+  key_takeaways text[],
+  concepts jsonb,
+  must_remember text[],
+  formula_or_logic jsonb,
+  summary text NOT NULL,
+  created_at timestamptz DEFAULT now(),
+  updated_at timestamptz DEFAULT now(),
+  UNIQUE(user_id, video_id, playlist_id)
+);
+
 -- Enable Row Level Security
 ALTER TABLE user_progress ENABLE ROW LEVEL SECURITY;
+ALTER TABLE user_playlists ENABLE ROW LEVEL SECURITY;
+ALTER TABLE video_notes ENABLE ROW LEVEL SECURITY;
 
+-- USER_PROGRESS POLICIES
 -- Users can only see their own progress
 CREATE POLICY "Users can view own progress"
 ON user_progress FOR SELECT
@@ -48,9 +83,66 @@ ON user_progress FOR DELETE
 TO authenticated
 USING (auth.uid() = user_id);
 
+-- USER_PLAYLISTS POLICIES
+-- Users can only see their own playlists
+CREATE POLICY "Users can view own playlists"
+ON user_playlists FOR SELECT
+TO authenticated
+USING (auth.uid() = user_id);
+
+-- Users can insert their own playlists
+CREATE POLICY "Users can insert own playlists"
+ON user_playlists FOR INSERT
+TO authenticated
+WITH CHECK (auth.uid() = user_id);
+
+-- Users can update their own playlists
+CREATE POLICY "Users can update own playlists"
+ON user_playlists FOR UPDATE
+TO authenticated
+USING (auth.uid() = user_id)
+WITH CHECK (auth.uid() = user_id);
+
+-- Users can delete their own playlists
+CREATE POLICY "Users can delete own playlists"
+ON user_playlists FOR DELETE
+TO authenticated
+USING (auth.uid() = user_id);
+
+-- VIDEO_NOTES POLICIES
+-- Users can only see their own notes
+CREATE POLICY "Users can view own notes"
+ON video_notes FOR SELECT
+TO authenticated
+USING (auth.uid() = user_id);
+
+-- Users can insert their own notes
+CREATE POLICY "Users can insert own notes"
+ON video_notes FOR INSERT
+TO authenticated
+WITH CHECK (auth.uid() = user_id);
+
+-- Users can update their own notes
+CREATE POLICY "Users can update own notes"
+ON video_notes FOR UPDATE
+TO authenticated
+USING (auth.uid() = user_id)
+WITH CHECK (auth.uid() = user_id);
+
+-- Users can delete their own notes
+CREATE POLICY "Users can delete own notes"
+ON video_notes FOR DELETE
+TO authenticated
+USING (auth.uid() = user_id);
+
 -- Create indexes for faster queries
 CREATE INDEX idx_user_progress_user_id ON user_progress(user_id);
 CREATE INDEX idx_user_progress_playlist ON user_progress(user_id, playlist_id);
+CREATE INDEX idx_user_playlists_user_id ON user_playlists(user_id);
+CREATE INDEX idx_user_playlists_playlist_id ON user_playlists(user_id, playlist_id);
+CREATE INDEX idx_video_notes_user_id ON video_notes(user_id);
+CREATE INDEX idx_video_notes_playlist ON video_notes(user_id, playlist_id);
+CREATE INDEX idx_video_notes_video ON video_notes(user_id, video_id);
 ```
 
 **⚠️ IMPORTANT:** When copying from the code block above:

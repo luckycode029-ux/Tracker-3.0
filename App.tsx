@@ -3,9 +3,10 @@ import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import { db } from './db';
 import { Playlist, Video, VideoNotes } from './types';
 import { extractPlaylistId, fetchPlaylistDetails } from './services/youtubeService';
-import { generateVideoNotes } from './services/notesService';
+import { generateVideoNotes, saveNotesToSupabase, getNotesForPlaylist, deleteNotesFromSupabase } from './services/notesService';
 import { onAuthStateChange, signOut, AuthUser } from './services/authService';
 import { getUserProgress, toggleVideoProgress, syncLocalProgressToSupabase } from './services/userProgress';
+import { savePlaylistToSupabase, getUserPlaylists, deletePlaylistFromSupabase, updatePlaylistAccessTime } from './services/playlistService';
 import { Sidebar } from './components/Sidebar';
 import { PlaylistInput } from './components/PlaylistInput';
 import { VideoCard } from './components/VideoCard';
@@ -111,14 +112,46 @@ const App: React.FC = () => {
   useEffect(() => {
     const loadInitialData = async () => {
       try {
+        // Load from local DB first for offline support
         const allPlaylists = await db.playlists.orderBy('lastAccessed').reverse().toArray();
         setPlaylists(allPlaylists);
+
+        // If user is logged in, sync with Supabase
+        if (user) {
+          console.log('🔄 Loading playlists from Supabase for user:', user.id);
+          const supabasePlaylists = await getUserPlaylists(user.id);
+          
+          if (supabasePlaylists.length > 0) {
+            // Sync Supabase playlists to local DB
+            await db.transaction('rw', [db.playlists], async () => {
+              for (const playlist of supabasePlaylists) {
+                const exists = await db.playlists.get(playlist.id);
+                if (!exists) {
+                  // Add new playlists from Supabase
+                  await db.playlists.add(playlist);
+                } else {
+                  // Update lastAccessed from Supabase
+                  await db.playlists.update(playlist.id, { 
+                    lastAccessed: playlist.lastAccessed 
+                  });
+                }
+              }
+            });
+
+            // Reload from local DB to show updated list
+            const updatedPlaylists = await db.playlists.orderBy('lastAccessed').reverse().toArray();
+            setPlaylists(updatedPlaylists);
+            console.log('✅ Synced', supabasePlaylists.length, 'playlists from Supabase');
+          }
+        }
       } catch (err) {
         console.error("Failed to load playlists:", err);
       }
     };
+    
+    // Load data when component mounts or user changes
     loadInitialData();
-  }, []);
+  }, [user]);
 
   // Global Keyboard Shortcuts
   useEffect(() => {
@@ -216,11 +249,21 @@ const App: React.FC = () => {
           setProgressMap(updatedProgress);
         }
 
-        // Load notes
-        const notes = await db.notes.where('playlistId').equals(activePlaylistId).toArray();
-        const nMap: Record<string, VideoNotes> = {};
-        notes.forEach(n => { nMap[n.videoId] = n; });
-        setNotesMap(nMap);
+        // Load notes from Supabase first
+        console.log('📝 Loading notes from Supabase for playlist:', activePlaylistId);
+        const supabaseNotes = await getNotesForPlaylist(user.id, activePlaylistId);
+        setNotesMap(supabaseNotes);
+
+        // Also load from local DB for offline support
+        const localNotes = await db.notes.where('playlistId').equals(activePlaylistId).toArray();
+        if (localNotes.length > 0) {
+          const nMap: Record<string, VideoNotes> = {};
+          localNotes.forEach(n => { nMap[n.videoId] = n; });
+          
+          // Merge: Supabase takes priority (newer), but include local ones too
+          const mergedNotes = { ...nMap, ...supabaseNotes };
+          setNotesMap(mergedNotes);
+        }
         
         syncActivePlaylist(activePlaylistId);
       } catch (err) {
@@ -242,6 +285,10 @@ const App: React.FC = () => {
     if (existing) {
       setActivePlaylistId(playlistId);
       setError(null);
+      // Update last accessed time in Supabase
+      if (user) {
+        await updatePlaylistAccessTime(user.id, playlistId);
+      }
       return;
     }
 
@@ -253,6 +300,12 @@ const App: React.FC = () => {
         await db.playlists.add(playlist);
         await db.videos.bulkPut(videos.map(v => ({ ...v, playlistId })));
       });
+
+      // Save playlist to Supabase for cross-device sync
+      if (user) {
+        await savePlaylistToSupabase(user.id, playlist);
+      }
+
       const allPlaylists = await db.playlists.orderBy('lastAccessed').reverse().toArray();
       setPlaylists(allPlaylists);
       setActivePlaylistId(playlistId);
@@ -306,7 +359,7 @@ const App: React.FC = () => {
   };
 
   const handleGenerateNotes = async () => {
-    if (!notesVideo || !activePlaylistId) return;
+    if (!notesVideo || !activePlaylistId || !user) return;
     
     setIsGeneratingNotes(true);
     setError(null);
@@ -324,8 +377,13 @@ const App: React.FC = () => {
         createdAt: Date.now()
       };
 
+      // Save to local DB
       await db.notes.put(newNotes);
       setNotesMap(prev => ({ ...prev, [notesVideo.id]: newNotes }));
+
+      // Save to Supabase for cross-device sync
+      await saveNotesToSupabase(user.id, newNotes);
+      console.log('✅ Notes saved to Supabase');
     } catch (err: any) {
       console.error('❌ Generation Error:', err);
       setError(err.message || 'Notes generation failed.');
@@ -352,6 +410,12 @@ const App: React.FC = () => {
           await db.progress.where('playlistId').equals(id).delete();
           await db.notes.where('playlistId').equals(id).delete();
         });
+
+        // Delete from Supabase as well
+        if (user) {
+          await deletePlaylistFromSupabase(user.id, id);
+          console.log('✅ Playlist deleted from Supabase');
+        }
       } catch (err) {
         console.error('Delete failed:', err);
         setError('Could not delete playlist.');
