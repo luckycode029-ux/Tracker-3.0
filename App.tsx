@@ -14,12 +14,13 @@ import { VideoPlayer } from './components/VideoPlayer';
 import { NotesModal } from './components/NotesModal';
 import { Login } from './components/Login';
 import { Signup } from './components/Signup';
-import { Youtube, History, AlertCircle, Layers, RefreshCw, Sparkles, PanelLeftOpen, LogOut } from 'lucide-react';
+import { Youtube, History, AlertCircle, Layers, RefreshCw, Sparkles, PanelLeftOpen, LogOut, LogIn } from 'lucide-react';
 
 const App: React.FC = () => {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [isAuthLoading, setIsAuthLoading] = useState(true);
   const [authView, setAuthView] = useState<'login' | 'signup'>('login');
+  const [showAuthModal, setShowAuthModal] = useState(false);
 
   const [playlists, setPlaylists] = useState<Playlist[]>([]);
   const [activePlaylistId, setActivePlaylistId] = useState<string | null>(null);
@@ -380,13 +381,28 @@ const App: React.FC = () => {
     );
   }
 
-  if (!user) {
-    return authView === 'login' ? (
-      <Login onSwitchToSignup={() => setAuthView('signup')} />
-    ) : (
-      <Signup onSwitchToLogin={() => setAuthView('login')} />
+  // --- Auth Modal ---
+  const AuthModal = () => {
+    if (!showAuthModal) return null;
+
+    return (
+      <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div className="bg-white rounded-lg shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto">
+          <button
+            onClick={() => setShowAuthModal(false)}
+            className="absolute top-4 right-4 text-gray-500 hover:text-gray-700 text-2xl z-10"
+          >
+            ×
+          </button>
+          {authView === 'login' ? (
+            <Login onSwitchToSignup={() => setAuthView('signup')} />
+          ) : (
+            <Signup onSwitchToLogin={() => setAuthView('login')} />
+          )}
+        </div>
+      </div>
     );
-  }
+  };
 
   // --- Main App UI ---
   return (
@@ -406,20 +422,36 @@ const App: React.FC = () => {
       />
 
       <main className="flex-grow flex flex-col relative overflow-hidden">
-        {/* User Profile & Sign Out */}
+        {/* User Profile & Sign Out / Auth Button */}
         <div className="absolute top-4 right-4 z-30 flex items-center gap-4 bg-zinc-900/50 px-4 py-2 rounded-lg border border-zinc-800">
-          <div className="text-right hidden sm:block">
-            <p className="text-sm font-medium text-white">{user.email?.split('@')[0]}</p>
-            <p className="text-xs text-zinc-500">{user.email}</p>
-          </div>
-          <button
-            onClick={handleSignOut}
-            className="flex items-center gap-2 px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white text-sm font-medium rounded-lg transition"
-            title="Sign out"
-          >
-            <LogOut size={16} />
-            <span className="hidden sm:inline">Sign Out</span>
-          </button>
+          {user ? (
+            <>
+              <div className="text-right hidden sm:block">
+                <p className="text-sm font-medium text-white">{user.email?.split('@')[0]}</p>
+                <p className="text-xs text-zinc-500">{user.email}</p>
+              </div>
+              <button
+                onClick={handleSignOut}
+                className="flex items-center gap-2 px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white text-sm font-medium rounded-lg transition"
+                title="Sign out"
+              >
+                <LogOut size={16} />
+                <span className="hidden sm:inline">Sign Out</span>
+              </button>
+            </>
+          ) : (
+            <button
+              onClick={() => {
+                setAuthView('login');
+                setShowAuthModal(true);
+              }}
+              className="flex items-center gap-2 px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-sm font-medium rounded-lg transition"
+              title="Sign in or Sign up"
+            >
+              <LogIn size={16} />
+              <span>Sign In</span>
+            </button>
+          )}
         </div>
 
         {!isSidebarOpen && (
@@ -565,6 +597,9 @@ const App: React.FC = () => {
           onGenerate={handleGenerateNotes}
         />
       )}
+
+      {/* Auth Modal */}
+      <AuthModal />
     </div>
   );
 };
