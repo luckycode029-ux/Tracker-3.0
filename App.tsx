@@ -423,34 +423,39 @@ const App: React.FC = () => {
 
       <main className="flex-grow flex flex-col relative overflow-hidden">
         {/* User Profile & Sign Out / Auth Button */}
-        <div className="absolute top-4 right-4 z-30 flex items-center gap-4 bg-zinc-900/50 px-4 py-2 rounded-lg border border-zinc-800">
-          {user ? (
-            <>
-              <div className="text-right hidden sm:block">
-                <p className="text-sm font-medium text-white">{user.email?.split('@')[0]}</p>
-                <p className="text-xs text-zinc-500">{user.email}</p>
-              </div>
+        <div className="absolute top-4 right-4 z-30 flex flex-col items-end gap-2">
+          <div className="flex items-center gap-4 bg-zinc-900/50 px-4 py-2 rounded-lg border border-zinc-800">
+            {user ? (
+              <>
+                <div className="text-right hidden sm:block">
+                  <p className="text-sm font-medium text-white">{user.email?.split('@')[0]}</p>
+                  <p className="text-xs text-zinc-500">{user.email}</p>
+                </div>
+                <button
+                  onClick={handleSignOut}
+                  className="flex items-center gap-2 px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white text-sm font-medium rounded-lg transition"
+                  title="Sign out"
+                >
+                  <LogOut size={16} />
+                  <span className="hidden sm:inline">Sign Out</span>
+                </button>
+              </>
+            ) : (
               <button
-                onClick={handleSignOut}
-                className="flex items-center gap-2 px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white text-sm font-medium rounded-lg transition"
-                title="Sign out"
+                onClick={() => {
+                  setAuthView('login');
+                  setShowAuthModal(true);
+                }}
+                className="flex items-center gap-2 px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-sm font-medium rounded-lg transition"
+                title="Sign in or Sign up"
               >
-                <LogOut size={16} />
-                <span className="hidden sm:inline">Sign Out</span>
+                <LogIn size={16} />
+                <span>Sign In</span>
               </button>
-            </>
-          ) : (
-            <button
-              onClick={() => {
-                setAuthView('login');
-                setShowAuthModal(true);
-              }}
-              className="flex items-center gap-2 px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-sm font-medium rounded-lg transition"
-              title="Sign in or Sign up"
-            >
-              <LogIn size={16} />
-              <span>Sign In</span>
-            </button>
+            )}
+          </div>
+          {!user && (
+            <p className="text-[10px] text-zinc-500 pr-2 text-right">To track playlist progress, sign up first</p>
           )}
         </div>
 
