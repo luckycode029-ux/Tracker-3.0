@@ -6,7 +6,7 @@ This guide will help you set up progress synchronization across devices using Su
 
 1. Go to [app.supabase.com](https://app.supabase.com) → Your Project
 2. Click **SQL Editor** → **New Query**
-3. Copy and paste the SQL below:
+3. Copy and paste the SQL below (**DO NOT copy the word "sql" on the first line, only the actual code**):
 
 ```sql
 -- Table for user progress (which videos they completed)
@@ -53,8 +53,14 @@ CREATE INDEX idx_user_progress_user_id ON user_progress(user_id);
 CREATE INDEX idx_user_progress_playlist ON user_progress(user_id, playlist_id);
 ```
 
-4. Click **Run**
-5. You should see: `Query executed successfully`
+**⚠️ IMPORTANT:** When copying from the code block above:
+- Start from the first `--` (comment)
+- End with the last `INDEX` line
+- Do NOT copy the word "sql" before the code
+- Do NOT copy the backticks
+
+4. Paste into Supabase SQL Editor
+5. Click **Run** ✅
 
 ## ✅ Step 2: Enable Realtime (Optional - for live updates)
 
