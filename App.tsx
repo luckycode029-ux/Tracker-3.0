@@ -5,6 +5,7 @@ import { Playlist, Video, VideoNotes } from './types';
 import { extractPlaylistId, fetchPlaylistDetails } from './services/youtubeService';
 import { generateVideoNotes } from './services/notesService';
 import { onAuthStateChange, signOut, AuthUser } from './services/authService';
+import { getUserProgress, toggleVideoProgress, syncLocalProgressToSupabase } from './services/userProgress';
 import { Sidebar } from './components/Sidebar';
 import { PlaylistInput } from './components/PlaylistInput';
 import { VideoCard } from './components/VideoCard';
@@ -172,38 +173,65 @@ const App: React.FC = () => {
     }
   }, []);
 
-  // Load content
+  // Load content and user progress
   useEffect(() => {
-    if (!activePlaylistId) return;
+    if (!activePlaylistId || !user) return;
 
-    const loadLocalContent = async () => {
+    const loadContent = async () => {
       setIsLoading(true);
       setCurrentPartIndex(0);
       try {
+        // Load videos
         const videos = await db.videos.where('playlistId').equals(activePlaylistId).toArray();
-        const progress = await db.progress.where('playlistId').equals(activePlaylistId).toArray();
-        const notes = await db.notes.where('playlistId').equals(activePlaylistId).toArray();
-        
         setActiveVideos(videos.sort((a, b) => a.position - b.position));
-        
-        const pMap: Record<string, boolean> = {};
-        progress.forEach(p => { pMap[p.videoId] = p.completed; });
-        setProgressMap(pMap);
 
+        // Load user progress from Supabase
+        console.log('🔄 Loading progress from Supabase for user:', user.id);
+        const supabaseProgress = await getUserProgress(user.id, activePlaylistId);
+        setProgressMap(supabaseProgress);
+
+        // MIGRATION: Check if user has local progress that needs syncing
+        const localProgress = await db.progress
+          .where('playlistId')
+          .equals(activePlaylistId)
+          .toArray();
+
+        if (localProgress.length > 0) {
+          console.log('📤 Found local progress, syncing to Supabase...');
+          await syncLocalProgressToSupabase(
+            user.id,
+            localProgress.map(p => ({
+              videoId: p.videoId,
+              playlistId: p.playlistId,
+              completed: p.completed
+            }))
+          );
+
+          // Clear local progress after syncing
+          await db.progress.where('playlistId').equals(activePlaylistId).delete();
+          
+          // Reload from Supabase to confirm
+          const updatedProgress = await getUserProgress(user.id, activePlaylistId);
+          setProgressMap(updatedProgress);
+        }
+
+        // Load notes
+        const notes = await db.notes.where('playlistId').equals(activePlaylistId).toArray();
         const nMap: Record<string, VideoNotes> = {};
         notes.forEach(n => { nMap[n.videoId] = n; });
         setNotesMap(nMap);
         
         syncActivePlaylist(activePlaylistId);
       } catch (err) {
+        console.error('Error loading content:', err);
         setError('Failed to load playlist content');
       } finally {
         setIsLoading(false);
       }
     };
 
-    loadLocalContent();
-  }, [activePlaylistId, syncActivePlaylist]);
+    loadContent();
+  }, [activePlaylistId, user, syncActivePlaylist]);
 
   const handleSearch = async (url: string) => {
     const playlistId = extractPlaylistId(url);
@@ -235,18 +263,45 @@ const App: React.FC = () => {
   };
 
   const toggleVideoStatus = async (videoId: string) => {
-    if (!activePlaylistId) return;
+    if (!activePlaylistId || !user) {
+      console.warn('Cannot toggle: missing playlist or user');
+      return;
+    }
+
     const currentStatus = progressMap[videoId] || false;
     const newStatus = !currentStatus;
 
-    await db.progress.put({
-      videoId,
-      playlistId: activePlaylistId,
-      completed: newStatus,
-      updatedAt: Date.now()
-    });
+    console.log('🔄 Toggling video status:', videoId, newStatus);
 
+    // Optimistically update UI
     setProgressMap(prev => ({ ...prev, [videoId]: newStatus }));
+
+    // Save to Supabase
+    const success = await toggleVideoProgress(
+      user.id,
+      videoId,
+      activePlaylistId,
+      newStatus
+    );
+
+    if (!success) {
+      // Revert on failure
+      setProgressMap(prev => ({ ...prev, [videoId]: currentStatus }));
+      setError('Failed to save progress. Please try again.');
+      return;
+    }
+
+    // Also save to local DB for offline access (optional)
+    try {
+      await db.progress.put({
+        videoId,
+        playlistId: activePlaylistId,
+        completed: newStatus,
+        updatedAt: Date.now()
+      });
+    } catch (err) {
+      console.warn('Failed to save to local DB:', err);
+    }
   };
 
   const handleGenerateNotes = async () => {
