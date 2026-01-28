@@ -1,16 +1,37 @@
 import { VideoNotes } from '../types';
 import { supabase } from './supabaseClient';
+import { getCachedVideoNotes, cacheVideoNotes } from './cacheService';
 
 /**
  * Generate student-centric study notes for a YouTube video using Gemini API.
+ * First checks cache, then generates from API if not cached.
  * Proxies through Netlify serverless function for secure API key handling.
+ * 
+ * @param videoId - YouTube video ID
+ * @param videoTitle - Video title
+ * @param channelTitle - Channel title
+ * @param playlistId - Playlist ID (for cache lookup)
+ * @param forceRegenerate - Skip cache and regenerate notes
  */
 export async function generateVideoNotes(
   videoId: string,
   videoTitle: string,
-  channelTitle: string
+  channelTitle: string,
+  playlistId?: string,
+  forceRegenerate: boolean = false
 ): Promise<Omit<VideoNotes, 'videoId' | 'playlistId' | 'createdAt'>> {
   console.log('🎬 Generating notes for:', videoTitle);
+
+  // Check cache first unless force regenerate
+  if (!forceRegenerate && playlistId) {
+    const cached = await getCachedVideoNotes(videoId, playlistId);
+    if (cached) {
+      console.log('📦 Using cached notes data');
+      return cached;
+    }
+  }
+
+  console.log('🤖 Calling Gemini API to generate notes...');
 
   try {
     const response = await fetch('/.netlify/functions/gemini', {
@@ -33,6 +54,12 @@ export async function generateVideoNotes(
 
     console.log('✅ Successfully generated and parsed notes');
 
+    // Cache the generated notes
+    if (playlistId) {
+      console.log('💾 Caching notes for future use...');
+      await cacheVideoNotes(videoId, playlistId, data);
+    }
+
     return data;
   } catch (err: any) {
     console.error('❌ Notes Generation Error:', err);
@@ -42,9 +69,7 @@ export async function generateVideoNotes(
   }
 }
 
-/**
- * Save video notes to Supabase for cross-device sync
- */
+
 export async function saveNotesToSupabase(
   userId: string,
   notes: VideoNotes

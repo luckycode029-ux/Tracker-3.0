@@ -7,6 +7,7 @@ interface GlobalProgressProps {
   totalCount: number;
   playlistTitle: string;
   onRemove: () => void;
+  onRefresh?: () => void;
   isSyncing?: boolean;
 }
 
@@ -15,6 +16,7 @@ export const GlobalProgress: React.FC<GlobalProgressProps> = ({
   totalCount,
   playlistTitle,
   onRemove,
+  onRefresh,
   isSyncing = false
 }) => {
   const percentage = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
@@ -27,6 +29,14 @@ export const GlobalProgress: React.FC<GlobalProgressProps> = ({
             <h1 className="text-xl md:text-2xl font-bold text-white truncate">{playlistTitle}</h1>
             <div className="flex items-center gap-2">
               <button
+                onClick={onRefresh}
+                disabled={isSyncing}
+                className="p-2 text-zinc-500 hover:text-blue-500 hover:bg-blue-500/10 rounded-lg transition-all flex-shrink-0 disabled:opacity-50 disabled:cursor-not-allowed"
+                title="Refresh playlist from YouTube"
+              >
+                <RefreshCw className={`w-5 h-5 ${isSyncing ? 'animate-spin' : ''}`} />
+              </button>
+              <button
                 onClick={onRemove}
                 className="p-2 text-zinc-500 hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-all flex-shrink-0"
                 title="Remove Playlist"
@@ -35,8 +45,7 @@ export const GlobalProgress: React.FC<GlobalProgressProps> = ({
               </button>
               {isSyncing && (
                 <div className="flex items-center gap-2 px-2 py-1 bg-blue-500/10 rounded-md">
-                  <RefreshCw className="w-3 h-3 text-blue-400 animate-spin" />
-                  <span className="text-[10px] font-bold text-blue-400 uppercase tracking-tighter">Syncing</span>
+                  <span className="text-[10px] font-bold text-blue-400 uppercase tracking-tighter">Refreshing</span>
                 </div>
               )}
             </div>

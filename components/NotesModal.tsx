@@ -8,6 +8,7 @@ interface NotesModalProps {
   isGenerating: boolean;
   onClose: () => void;
   onGenerate: () => void;
+  onRefresh?: () => void;
 }
 
 export const NotesModal: React.FC<NotesModalProps> = ({
@@ -15,7 +16,8 @@ export const NotesModal: React.FC<NotesModalProps> = ({
   notes,
   isGenerating,
   onClose,
-  onGenerate
+  onGenerate,
+  onRefresh
 }) => {
   return (
     <div className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4 overflow-y-auto">
@@ -199,12 +201,22 @@ export const NotesModal: React.FC<NotesModalProps> = ({
             <p className="text-xs text-zinc-600">
               Generated on {new Date(notes.createdAt).toLocaleDateString()}
             </p>
-            <button
-              onClick={onGenerate}
-              className="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-white rounded-xl font-bold text-sm transition-all"
-            >
-              Regenerate
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={onRefresh}
+                disabled={isGenerating}
+                className="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-white rounded-xl font-bold text-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Refresh Notes
+              </button>
+              <button
+                onClick={onGenerate}
+                disabled={isGenerating}
+                className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-xl font-bold text-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isGenerating ? 'Generating...' : 'Regenerate'}
+              </button>
+            </div>
           </div>
         )}
       </div>

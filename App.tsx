@@ -182,10 +182,10 @@ const App: React.FC = () => {
   }, [activePlaylistId, activeVideo, playlistSegments.length]);
 
   // Sync logic
-  const syncActivePlaylist = useCallback(async (id: string) => {
+  const syncActivePlaylist = useCallback(async (id: string, forceRefresh: boolean = false) => {
     setIsSyncing(true);
     try {
-      const { playlist, videos } = await fetchPlaylistDetails(id);
+      const { playlist, videos } = await fetchPlaylistDetails(id, forceRefresh);
       await db.transaction('rw', [db.playlists, db.videos], async () => {
         await db.playlists.update(id, { 
           videoCount: playlist.videoCount, 
@@ -200,6 +200,11 @@ const App: React.FC = () => {
       setActiveVideos(updatedVideos.sort((a, b) => a.position - b.position));
       const allPlaylists = await db.playlists.orderBy('lastAccessed').reverse().toArray();
       setPlaylists(allPlaylists);
+      
+      if (forceRefresh) {
+        setError(null);
+        console.log('✅ Playlist refreshed from YouTube API');
+      }
     } catch (err) {
       console.warn("Background sync failed:", err);
     } finally {
@@ -358,7 +363,7 @@ const App: React.FC = () => {
     }
   };
 
-  const handleGenerateNotes = async () => {
+  const handleGenerateNotes = async (forceRegenerate: boolean = false) => {
     if (!notesVideo || !activePlaylistId || !user) return;
     
     setIsGeneratingNotes(true);
@@ -367,7 +372,9 @@ const App: React.FC = () => {
       const notesData = await generateVideoNotes(
         notesVideo.id,
         notesVideo.title,
-        notesVideo.channelTitle
+        notesVideo.channelTitle,
+        activePlaylistId,
+        forceRegenerate
       );
 
       const newNotes: VideoNotes = {
@@ -390,6 +397,18 @@ const App: React.FC = () => {
     } finally {
       setIsGeneratingNotes(false);
     }
+  };
+
+  const refreshPlaylist = async () => {
+    if (!activePlaylistId) return;
+    console.log('🔄 Refreshing playlist from YouTube API...');
+    await syncActivePlaylist(activePlaylistId, true);
+  };
+
+  const handleRefreshNotes = async () => {
+    if (!notesVideo || !activePlaylistId) return;
+    console.log('🔄 Regenerating notes...');
+    await handleGenerateNotes(true);
   };
 
   const deletePlaylist = async (id: string) => {
@@ -540,6 +559,7 @@ const App: React.FC = () => {
               completedCount={completedCount}
               totalCount={activeVideos.length}
               onRemove={() => deletePlaylist(activePlaylistId)}
+              onRefresh={refreshPlaylist}
               isSyncing={isSyncing}
             />
 
@@ -664,6 +684,7 @@ const App: React.FC = () => {
           isGenerating={isGeneratingNotes}
           onClose={() => setNotesVideo(null)}
           onGenerate={handleGenerateNotes}
+          onRefresh={handleRefreshNotes}
         />
       )}
 

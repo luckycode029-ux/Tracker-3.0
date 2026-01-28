@@ -1,5 +1,6 @@
 
 import { Video, Playlist } from '../types';
+import { getCachedPlaylist, cachePlaylist } from './cacheService';
 
 /**
  * YouTube API Service
@@ -23,10 +24,28 @@ export const extractPlaylistId = (input: string): string | null => {
 
 /**
  * Fetches all videos in a playlist via serverless function
+ * First checks cache, then fetches from API if not cached
  * API key is stored securely on Netlify, not exposed on frontend
+ * 
+ * @param playlistId - YouTube playlist ID
+ * @param forceRefresh - Skip cache and fetch fresh from API
  */
-export const fetchPlaylistDetails = async (playlistId: string): Promise<{ playlist: Playlist; videos: Video[] }> => {
+export const fetchPlaylistDetails = async (
+  playlistId: string,
+  forceRefresh: boolean = false
+): Promise<{ playlist: Playlist; videos: Video[] }> => {
   try {
+    // Check cache first unless force refresh
+    if (!forceRefresh) {
+      const cached = await getCachedPlaylist(playlistId);
+      if (cached) {
+        console.log('📦 Using cached playlist data');
+        return cached;
+      }
+    }
+
+    console.log('🎬 Fetching playlist from YouTube API...');
+    
     const response = await fetch('/.netlify/functions/youtube', {
       method: 'POST',
       headers: {
@@ -40,6 +59,10 @@ export const fetchPlaylistDetails = async (playlistId: string): Promise<{ playli
     if (!response.ok) {
       throw new Error(data.error || 'Failed to fetch playlist details');
     }
+
+    // Cache the fetched data
+    console.log('💾 Caching playlist for future use...');
+    await cachePlaylist(data.playlist, data.videos);
 
     return data;
   } catch (error: any) {

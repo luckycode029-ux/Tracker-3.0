@@ -34,7 +34,7 @@ CREATE TABLE IF NOT EXISTS user_playlists (
   UNIQUE(user_id, playlist_id)
 );
 
--- Table for video notes (AI-generated summaries)
+-- Table for video notes (AI-generated summaries - user-specific)
 CREATE TABLE IF NOT EXISTS video_notes (
   id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
   user_id uuid REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
@@ -52,10 +52,43 @@ CREATE TABLE IF NOT EXISTS video_notes (
   UNIQUE(user_id, video_id, playlist_id)
 );
 
+-- Table for cached playlists and videos (shared across all users, no RLS)
+CREATE TABLE IF NOT EXISTS cached_playlists (
+  id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+  playlist_id text NOT NULL UNIQUE,
+  title text NOT NULL,
+  description text,
+  thumbnail text,
+  channel_title text,
+  video_count integer DEFAULT 0,
+  videos jsonb NOT NULL,
+  cached_at timestamptz DEFAULT now(),
+  updated_at timestamptz DEFAULT now()
+);
+
+-- Table for cached video notes (shared across all users, no RLS)
+-- Users can regenerate notes, which replaces the cached version
+CREATE TABLE IF NOT EXISTS cached_video_notes (
+  id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+  video_id text NOT NULL,
+  playlist_id text NOT NULL,
+  topic text NOT NULL,
+  source text,
+  key_takeaways text[],
+  concepts jsonb,
+  must_remember text[],
+  formula_or_logic jsonb,
+  summary text NOT NULL,
+  cached_at timestamptz DEFAULT now(),
+  updated_at timestamptz DEFAULT now(),
+  UNIQUE(video_id, playlist_id)
+);
+
 -- Enable Row Level Security
 ALTER TABLE user_progress ENABLE ROW LEVEL SECURITY;
 ALTER TABLE user_playlists ENABLE ROW LEVEL SECURITY;
 ALTER TABLE video_notes ENABLE ROW LEVEL SECURITY;
+-- No RLS for cached tables (they are public/shared)
 
 -- USER_PROGRESS POLICIES
 -- Users can only see their own progress
@@ -109,7 +142,7 @@ ON user_playlists FOR DELETE
 TO authenticated
 USING (auth.uid() = user_id);
 
--- VIDEO_NOTES POLICIES
+-- VIDEO_NOTES POLICIES (user-specific notes)
 -- Users can only see their own notes
 CREATE POLICY "Users can view own notes"
 ON video_notes FOR SELECT
@@ -135,6 +168,18 @@ ON video_notes FOR DELETE
 TO authenticated
 USING (auth.uid() = user_id);
 
+-- CACHED_PLAYLISTS POLICIES (No RLS - everyone can read, only app can write)
+-- Allow anyone to read cached playlists
+CREATE POLICY "Anyone can view cached playlists"
+ON cached_playlists FOR SELECT
+USING (true);
+
+-- CACHED_VIDEO_NOTES POLICIES (No RLS - everyone can read, only app can write)
+-- Allow anyone to read cached notes
+CREATE POLICY "Anyone can view cached notes"
+ON cached_video_notes FOR SELECT
+USING (true);
+
 -- Create indexes for faster queries
 CREATE INDEX idx_user_progress_user_id ON user_progress(user_id);
 CREATE INDEX idx_user_progress_playlist ON user_progress(user_id, playlist_id);
@@ -143,6 +188,8 @@ CREATE INDEX idx_user_playlists_playlist_id ON user_playlists(user_id, playlist_
 CREATE INDEX idx_video_notes_user_id ON video_notes(user_id);
 CREATE INDEX idx_video_notes_playlist ON video_notes(user_id, playlist_id);
 CREATE INDEX idx_video_notes_video ON video_notes(user_id, video_id);
+CREATE INDEX idx_cached_playlists_id ON cached_playlists(playlist_id);
+CREATE INDEX idx_cached_notes_video ON cached_video_notes(video_id, playlist_id);
 ```
 
 **⚠️ IMPORTANT:** When copying from the code block above:
