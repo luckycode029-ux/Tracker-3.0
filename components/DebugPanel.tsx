@@ -20,7 +20,9 @@ export const DebugPanel: React.FC = () => {
     }
   };
 
-  const hasApiKey = !!process.env.API_KEY;
+  // Do not rely on build-time injection of server secrets. The Gemini key
+  // must remain server-side; show as unavailable in client UI.
+  const hasApiKey = false;
 
   if (!isOpen) {
     return (
