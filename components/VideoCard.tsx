@@ -126,7 +126,12 @@ export const VideoCard: React.FC<VideoCardProps> = ({
           </button>
 
           <button
-            onClick={() => window.open('https://notebooklm.google.com', '_blank')}
+            onClick={() => {
+              const url = `https://www.youtube.com/watch?v=${video.id}`;
+              navigator.clipboard.writeText(url).then(() => {
+                window.open('https://notebooklm.google.com', '_blank');
+              });
+            }}
             className="px-4 py-2 rounded-full text-xs font-bold bg-purple-500 text-white hover:bg-purple-600"
           >
             NotebookLM
