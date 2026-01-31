@@ -51,9 +51,9 @@ const handler: Handler = async (event, context) => {
     try {
       const transcript = await YoutubeTranscript.fetchTranscript(videoId);
       transcriptText = transcript.map(item => item.text).join(' ');
-      // Truncate if too long (approx 8000 chars ~ 2000 tokens)
-      if (transcriptText.length > 8000) {
-        transcriptText = transcriptText.substring(0, 8000) + '...';
+      // Truncate if too long (approx 20000 chars ~ 5000 tokens, model supports 128K)
+      if (transcriptText.length > 20000) {
+        transcriptText = transcriptText.substring(0, 20000) + '...';
       }
       console.log('📝 Transcript fetched, length:', transcriptText.length);
     } catch (error) {
@@ -67,7 +67,7 @@ const handler: Handler = async (event, context) => {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'llama3-8b-8192',
+        model: 'llama-3.1-8b-instant',
         messages: [
           {
             role: 'system',
