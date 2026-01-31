@@ -1,4 +1,5 @@
 import { Handler } from '@netlify/functions';
+import { YoutubeTranscript } from 'youtube-transcript';
 
 export interface GroqRequest {
   videoId: string;
@@ -45,6 +46,16 @@ const handler: Handler = async (event, context) => {
 
     console.log('🎬 Generating notes for:', videoTitle);
 
+    // Fetch transcript
+    let transcriptText = '';
+    try {
+      const transcript = await YoutubeTranscript.fetchTranscript(videoId);
+      transcriptText = transcript.map(item => item.text).join(' ');
+      console.log('📝 Transcript fetched, length:', transcriptText.length);
+    } catch (error) {
+      console.warn('⚠️ Could not fetch transcript, proceeding without it:', error);
+    }
+
     const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -56,17 +67,14 @@ const handler: Handler = async (event, context) => {
         messages: [
           {
             role: 'system',
-            content: `Generate student revision notes for this YouTube video.
+            content: `Convert this YouTube video transcript into detailed study notes.
 
 VIDEO TITLE: ${videoTitle}
 INSTRUCTOR/CHANNEL: ${channelTitle}
 
-You are a serious student who just watched this video and are making revision notes.
-Write in student-friendly language (not AI/textbook style).
-Avoid phrases like "delve into", "leverage", or "it's worth noting".
-Keep points concise and focus on logic and memory triggers.
+${transcriptText ? `TRANSCRIPT:\n${transcriptText}` : 'No transcript available. Generate notes based on the title and channel.'}
 
-Respond with JSON in this exact format:
+Include in JSON format:
 {
   "topic": "string",
   "source": "string",
