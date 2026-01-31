@@ -71,23 +71,16 @@ const handler: Handler = async (event, context) => {
         messages: [
           {
             role: 'system',
+            content: 'You are an AI assistant that generates structured study notes from YouTube video transcripts. Always respond with valid JSON matching this exact schema: {"topic": "string", "source": "string", "keyTakeaways": ["string"], "concepts": [{"term": "string", "meaning": "string"}], "mustRemember": ["string"], "formulaOrLogic": {"formula": "string", "structure": "string", "condition": "string", "whenToUse": "string"}, "summary": "string"}',
+          },
+          {
+            role: 'user',
             content: `Convert this YouTube video transcript into detailed study notes.
 
 VIDEO TITLE: ${videoTitle}
 INSTRUCTOR/CHANNEL: ${channelTitle}
 
-${transcriptText ? `TRANSCRIPT:\n${transcriptText}` : 'No transcript available. Generate notes based on the title and channel.'}
-
-Include in JSON format:
-{
-  "topic": "string",
-  "source": "string",
-  "keyTakeaways": ["string1", "string2", ...],
-  "concepts": [{"term": "string", "meaning": "string"}, ...],
-  "mustRemember": ["string1", "string2", ...],
-  "formulaOrLogic": {"formula": "string", "structure": "string", "condition": "string", "whenToUse": "string"},
-  "summary": "string"
-}`,
+${transcriptText ? `TRANSCRIPT:\n${transcriptText}` : 'No transcript available. Generate notes based on the title and channel.'}`,
           },
         ],
         response_format: { type: 'json_object' },
