@@ -51,6 +51,10 @@ const handler: Handler = async (event, context) => {
     try {
       const transcript = await YoutubeTranscript.fetchTranscript(videoId);
       transcriptText = transcript.map(item => item.text).join(' ');
+      // Truncate if too long (approx 20000 chars ~ 5000 tokens)
+      if (transcriptText.length > 20000) {
+        transcriptText = transcriptText.substring(0, 20000) + '...';
+      }
       console.log('📝 Transcript fetched, length:', transcriptText.length);
     } catch (error) {
       console.warn('⚠️ Could not fetch transcript, proceeding without it:', error);
@@ -63,7 +67,7 @@ const handler: Handler = async (event, context) => {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'llama3-8b-8192',
+        model: 'mixtral-8x7b-32768',
         messages: [
           {
             role: 'system',
@@ -91,7 +95,9 @@ Include in JSON format:
     });
 
     if (!response.ok) {
-      throw new Error(`Groq API error: ${response.status} ${response.statusText}`);
+      const errorText = await response.text();
+      console.error('Groq API error response:', errorText);
+      throw new Error(`Groq API error: ${response.status} ${response.statusText} - ${errorText}`);
     }
 
     const data = await response.json();
