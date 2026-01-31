@@ -3,7 +3,7 @@ import { supabase } from './supabaseClient';
 import { getCachedVideoNotes, cacheVideoNotes } from './cacheService';
 
 /**
- * Generate student-centric study notes for a YouTube video using Gemini API.
+ * Generate student-centric study notes for a YouTube video using Groq API.
  * First checks cache, then generates from API if not cached.
  * Proxies through Netlify serverless function for secure API key handling.
  * 
@@ -31,10 +31,10 @@ export async function generateVideoNotes(
     }
   }
 
-  console.log('🤖 Calling Gemini API to generate notes...');
+  console.log('🤖 Calling Groq API to generate notes...');
 
   try {
-    const response = await fetch('/.netlify/functions/gemini', {
+    const response = await fetch('/.netlify/functions/groq', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -195,9 +195,9 @@ export async function deleteNotesFromSupabase(
 /**
  * Connectivity test for system diagnostics
  */
-export async function testAPIKeys(): Promise<{ gemini: boolean }> {
+export async function testAPIKeys(): Promise<{ groq: boolean }> {
   try {
-    const response = await fetch('/.netlify/functions/gemini', {
+    const response = await fetch('/.netlify/functions/groq', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -209,9 +209,9 @@ export async function testAPIKeys(): Promise<{ gemini: boolean }> {
       }),
     });
 
-    return { gemini: response.ok };
+    return { groq: response.ok };
   } catch (e) {
     console.error('API Connectivity Test Failed:', e);
-    return { gemini: false };
+    return { groq: false };
   }
 }

@@ -15,8 +15,8 @@ View your app in AI Studio: https://ai.studio/apps/drive/15vpRxLhg_awvtn-TXUV40e
 
 1. Install dependencies:
    `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-   - For production (Netlify), set `GEMINI_API_KEY` in the Netlify dashboard under Site settings → Build & deploy → Environment → Environment variables.
+2. Set the `GROQ_API_KEY` in [.env.local](.env.local) to your Groq API key
+   - For production (Netlify), set `GROQ_API_KEY` in the Netlify dashboard under Site settings → Build & deploy → Environment → Environment variables.
    - For local development, copy `.env.example` to `.env.local` and add your keys (do NOT commit `.env.local`).
 3. Run the app:
    `npm run dev`

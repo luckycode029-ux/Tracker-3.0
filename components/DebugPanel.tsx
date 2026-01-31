@@ -6,7 +6,7 @@ import { Bug, CheckCircle, XCircle, Loader2, Info } from 'lucide-react';
 export const DebugPanel: React.FC = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [testing, setTesting] = useState(false);
-  const [results, setResults] = useState<{ gemini: boolean } | null>(null);
+  const [results, setResults] = useState<{ groq: boolean } | null>(null);
 
   const handleTest = async () => {
     setTesting(true);
@@ -20,7 +20,7 @@ export const DebugPanel: React.FC = () => {
     }
   };
 
-  // Do not rely on build-time injection of server secrets. The Gemini key
+  // Do not rely on build-time injection of server secrets. The Groq key
   // must remain server-side; show as unavailable in client UI.
   const hasApiKey = false;
 
@@ -56,7 +56,7 @@ export const DebugPanel: React.FC = () => {
           <h4 className="text-[9px] font-black text-zinc-500 mb-3 uppercase tracking-widest">Environment Status</h4>
           <div className="space-y-2">
             <div className="flex items-center justify-between p-3 bg-zinc-900/50 rounded-2xl border border-zinc-800/50">
-              <span className="text-[10px] font-bold text-zinc-400">Gemini API Key</span>
+              <span className="text-[10px] font-bold text-zinc-400">Groq API Key</span>
               {hasApiKey ? (
                 <CheckCircle className="w-4 h-4 text-green-500" />
               ) : (
@@ -83,8 +83,8 @@ export const DebugPanel: React.FC = () => {
           {results && (
             <div className="mt-3 p-3 bg-zinc-900/50 rounded-2xl border border-zinc-800/50">
               <div className="flex items-center justify-between">
-                <span className="text-[10px] font-bold text-zinc-400">Gemini Pro 3</span>
-                {results.gemini ? (
+                <span className="text-[10px] font-bold text-zinc-400">Groq Llama 3</span>
+                {results.groq ? (
                   <span className="text-green-500 text-[9px] font-black uppercase flex items-center gap-1">
                     <CheckCircle className="w-3.5 h-3.5" /> Online
                   </span>
