@@ -83,7 +83,7 @@ export const DebugPanel: React.FC = () => {
           {results && (
             <div className="mt-3 p-3 bg-zinc-900/50 rounded-2xl border border-zinc-800/50">
               <div className="flex items-center justify-between">
-                <span className="text-[10px] font-bold text-zinc-400">Groq Mixtral</span>
+                <span className="text-[10px] font-bold text-zinc-400">Groq Llama 3</span>
                 {results.groq ? (
                   <span className="text-green-500 text-[9px] font-black uppercase flex items-center gap-1">
                     <CheckCircle className="w-3.5 h-3.5" /> Online
