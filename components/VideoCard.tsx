@@ -124,6 +124,13 @@ export const VideoCard: React.FC<VideoCardProps> = ({
             <Sparkles className="w-3.5 h-3.5" />
             {hasNotes ? 'Study Guide' : 'Generate Notes'}
           </button>
+
+          <button
+            onClick={() => window.open('https://notebooklm.google.com', '_blank')}
+            className="px-4 py-2 rounded-full text-xs font-bold bg-purple-500 text-white hover:bg-purple-600"
+          >
+            NotebookLM
+          </button>
         </div>
       </div>
     </div>
