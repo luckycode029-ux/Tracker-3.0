@@ -22,6 +22,7 @@ const App: React.FC = () => {
   const [isAuthLoading, setIsAuthLoading] = useState(true);
   const [authView, setAuthView] = useState<'login' | 'signup'>('login');
   const [showAuthModal, setShowAuthModal] = useState(false);
+  const [pendingPlaylistUrl, setPendingPlaylistUrl] = useState<string | null>(null);
 
   const [playlists, setPlaylists] = useState<Playlist[]>([]);
   const [activePlaylistId, setActivePlaylistId] = useState<string | null>(null);
@@ -38,6 +39,16 @@ const App: React.FC = () => {
   
   const [currentPartIndex, setCurrentPartIndex] = useState(0);
   const searchInputRef = useRef<HTMLInputElement>(null);
+
+  // Check if this is the first visit
+  const isFirstVisit = useMemo(() => {
+    const hasVisited = localStorage.getItem('hasVisited');
+    if (!hasVisited) {
+      localStorage.setItem('hasVisited', 'true');
+      return true;
+    }
+    return false;
+  }, []);
 
   // --- Auth State Management ---
   useEffect(() => {
@@ -60,6 +71,53 @@ const App: React.FC = () => {
 
     setupAuth();
   }, []);
+
+  // Process pending playlist URL after authentication
+  useEffect(() => {
+    const processPendingPlaylist = async () => {
+      if (user && pendingPlaylistUrl) {
+        const url = pendingPlaylistUrl;
+        setPendingPlaylistUrl(null);
+        setShowAuthModal(false);
+        
+        const playlistId = extractPlaylistId(url);
+        if (!playlistId) { 
+          setError('Invalid YouTube Playlist URL'); 
+          return; 
+        }
+
+        const existing = await db.playlists.get(playlistId);
+        if (existing) {
+          setActivePlaylistId(playlistId);
+          setError(null);
+          await updatePlaylistAccessTime(user.id, playlistId);
+          return;
+        }
+
+        setIsLoading(true);
+        setError(null);
+        try {
+          const { playlist, videos } = await fetchPlaylistDetails(playlistId);
+          await db.transaction('rw', [db.playlists, db.videos], async () => {
+            await db.playlists.add(playlist);
+            await db.videos.bulkPut(videos.map(v => ({ ...v, playlistId })));
+          });
+
+          await savePlaylistToSupabase(user.id, playlist);
+
+          const allPlaylists = await db.playlists.orderBy('lastAccessed').reverse().toArray();
+          setPlaylists(allPlaylists);
+          setActivePlaylistId(playlistId);
+        } catch (err: any) {
+          setError(err.message || 'Error fetching playlist.');
+        } finally {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    processPendingPlaylist();
+  }, [user, pendingPlaylistUrl]);
 
   const handleSignOut = async () => {
     try {
@@ -283,6 +341,16 @@ const App: React.FC = () => {
   }, [activePlaylistId, user, syncActivePlaylist]);
 
   const handleSearch = async (url: string) => {
+    // Check if user is authenticated
+    // If not authenticated AND (not first visit OR pasting playlist link), require authentication
+    if (!user) {
+      // Store the playlist URL to process after authentication
+      setPendingPlaylistUrl(url);
+      setAuthView('signup'); // Default to signup view
+      setShowAuthModal(true);
+      return;
+    }
+
     const playlistId = extractPlaylistId(url);
     if (!playlistId) { setError('Invalid YouTube Playlist URL'); return; }
 
@@ -470,18 +538,29 @@ const App: React.FC = () => {
 
     return (
       <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-        <div className="bg-white rounded-lg shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto">
+        <div className="bg-white rounded-lg shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto relative">
+          {pendingPlaylistUrl && (
+            <div className="absolute top-0 left-0 right-0 bg-blue-50 border-b border-blue-200 px-4 py-3 text-sm text-blue-800 z-10">
+              <p className="font-medium">Sign up or sign in required</p>
+              <p className="text-xs text-blue-600 mt-1">Please authenticate to track your playlist</p>
+            </div>
+          )}
           <button
-            onClick={() => setShowAuthModal(false)}
-            className="absolute top-4 right-4 text-gray-500 hover:text-gray-700 text-2xl z-10"
+            onClick={() => {
+              setShowAuthModal(false);
+              setPendingPlaylistUrl(null);
+            }}
+            className={`absolute ${pendingPlaylistUrl ? 'top-3' : 'top-4'} right-4 text-gray-500 hover:text-gray-700 text-2xl z-20`}
           >
             ×
           </button>
-          {authView === 'login' ? (
-            <Login onSwitchToSignup={() => setAuthView('signup')} />
-          ) : (
-            <Signup onSwitchToLogin={() => setAuthView('login')} />
-          )}
+          <div className={pendingPlaylistUrl ? 'pt-20' : ''}>
+            {authView === 'login' ? (
+              <Login onSwitchToSignup={() => setAuthView('signup')} />
+            ) : (
+              <Signup onSwitchToLogin={() => setAuthView('login')} />
+            )}
+          </div>
         </div>
       </div>
     );
