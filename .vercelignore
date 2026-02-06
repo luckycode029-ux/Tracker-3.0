@@ -1,0 +1,11 @@
+# Vercel ignore file
+node_modules
+.git
+.netlify
+netlify
+netlify.toml
+_redirects
+*.md
+!README.md
+.env.local
+.env.*.local

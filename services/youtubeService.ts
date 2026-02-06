@@ -46,7 +46,14 @@ export const fetchPlaylistDetails = async (
 
     console.log('🎬 Fetching playlist from YouTube API...');
     
-    const response = await fetch('/.netlify/functions/youtube', {
+    // Try Vercel API route first, fallback to Netlify function
+    // In production (Vercel), use /api/youtube
+    // For local dev with Netlify, use /.netlify/functions/youtube
+    const apiUrl = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+      ? '/.netlify/functions/youtube'  // Local development with Netlify
+      : '/api/youtube';  // Production on Vercel or local with Vercel dev
+    
+    const response = await fetch(apiUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

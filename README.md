@@ -12,11 +12,46 @@ This contains everything you need to run your app locally.
 
 1. Install dependencies:
    `npm install`
-2. Set the `GROQ_API_KEY` in [.env.local](.env.local) to your Groq API key
-   - For production (Netlify), set `GROQ_API_KEY` in the Netlify dashboard under Site settings → Build & deploy → Environment → Environment variables.
-   - For local development, copy `.env.example` to `.env.local` and add your keys (do NOT commit `.env.local`).
+2. Set environment variables:
+   - For local development, create `.env.local` file with:
+     ```
+     VITE_SUPABASE_URL=your_supabase_url
+     VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
+     ```
+   - For production:
+     - **Vercel**: Set environment variables in Vercel dashboard (Settings → Environment Variables)
+     - **Netlify**: Set in Netlify dashboard (Site settings → Build & deploy → Environment → Environment variables)
+   
+   Required environment variables:
+   - `VITE_SUPABASE_URL` - Supabase project URL
+   - `VITE_SUPABASE_ANON_KEY` - Supabase anonymous key
+   - `YOUTUBE_API_KEY` - YouTube Data API v3 key (for serverless functions)
+   - `GROQ_API_KEY` - Groq API key (for AI notes generation)
+
 3. Run the app:
-   `npm run dev`
+   ```bash
+   npm run dev
+   ```
+
+## Deployment
+
+### Deploy to Vercel (Recommended)
+
+1. Push your code to GitHub
+2. Import your repository in [Vercel](https://vercel.com)
+3. Add environment variables in Vercel dashboard
+4. Deploy!
+
+See [VERCEL_DEPLOYMENT.md](./VERCEL_DEPLOYMENT.md) for detailed instructions.
+
+### Deploy to Netlify
+
+1. Push your code to GitHub
+2. Import your repository in [Netlify](https://netlify.com)
+3. Set build command: `npm run build`
+4. Set publish directory: `dist`
+5. Add environment variables in Netlify dashboard
+6. Deploy!
 
 Security notes:
 - If an API key is leaked, revoke/rotate it immediately in the provider console (e.g., Google Cloud Console) and create a new key.
