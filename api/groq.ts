@@ -15,18 +15,19 @@ export default async function handler(
   request: VercelRequest,
   response: VercelResponse
 ) {
-  // Only allow POST requests
-  if (request.method !== 'POST') {
-    return response.status(405).json({ error: 'Method not allowed. Use POST.' });
-  }
-
   // Enable CORS
   response.setHeader('Access-Control-Allow-Origin', '*');
   response.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   response.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
+  // Handle CORS preflight
   if (request.method === 'OPTIONS') {
     return response.status(200).end();
+  }
+
+  // Only allow POST requests
+  if (request.method !== 'POST') {
+    return response.status(405).json({ error: 'Method not allowed. Use POST.' });
   }
 
   try {
