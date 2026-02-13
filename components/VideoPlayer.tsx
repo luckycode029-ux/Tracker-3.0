@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState, useMemo } from 'react';
 import { Video } from '../types';
 import { X, Check, Circle, SkipForward } from 'lucide-react';
 
@@ -26,6 +26,49 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
 }) => {
   const playerRef = useRef<any>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const [availableQualities, setAvailableQualities] = useState<string[]>([]);
+  const [quality, setQuality] = useState<string>(() => {
+    try {
+      return localStorage.getItem('preferredQuality') || 'default';
+    } catch {
+      return 'default';
+    }
+  });
+
+  const qualityOptions = useMemo(() => {
+    const base = ['default', ...availableQualities];
+    const seen = new Set<string>();
+    return base.filter(q => {
+      if (seen.has(q)) return false;
+      seen.add(q);
+      return true;
+    });
+  }, [availableQualities]);
+
+  const qualityLabel = (q: string) => {
+    if (q === 'default') return 'Auto';
+    if (q === 'small') return '144p';
+    if (q === 'medium') return '360p';
+    if (q === 'large') return '480p';
+    if (q === 'hd720') return '720p';
+    if (q === 'hd1080') return '1080p';
+    if (q === 'highres') return 'High';
+    return q;
+  };
+
+  const applyQuality = (q: string) => {
+    if (!playerRef.current) return;
+    try {
+      const levels: string[] = playerRef.current.getAvailableQualityLevels?.() || [];
+      if (q === 'default') {
+        playerRef.current.setPlaybackQuality('default');
+        return;
+      }
+      if (levels.includes(q)) {
+        playerRef.current.setPlaybackQuality(q);
+      }
+    } catch {}
+  };
 
   useEffect(() => {
     const initPlayer = () => {
@@ -51,6 +94,13 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
         events: {
           onReady: (event: any) => {
             event.target.playVideo();
+            try {
+              const levels = event.target.getAvailableQualityLevels?.() || [];
+              setAvailableQualities(levels);
+              if (quality !== 'default' && levels.includes(quality)) {
+                event.target.setPlaybackQuality(quality);
+              }
+            } catch {}
           },
           onError: (event: any) => {
             console.error('YouTube Player Error:', event.data);
@@ -93,6 +143,24 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
           </div>
 
           <div className="flex items-center gap-2 flex-shrink-0">
+            <div className="flex items-center gap-2 bg-zinc-800 rounded-xl px-2 py-1">
+              <span className="text-xs text-zinc-300 font-bold">Quality</span>
+              <select
+                value={quality}
+                onChange={(e) => {
+                  const q = e.target.value;
+                  setQuality(q);
+                  try { localStorage.setItem('preferredQuality', q); } catch {}
+                  applyQuality(q);
+                }}
+                className="bg-zinc-900 text-zinc-100 text-xs rounded-lg px-2 py-1 border border-zinc-700"
+                title="Playback quality"
+              >
+                {qualityOptions.map((q) => (
+                  <option key={q} value={q}>{qualityLabel(q)}</option>
+                ))}
+              </select>
+            </div>
             <button
               onClick={() => onToggle(video.id)}
               className={`flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-sm transition-all ${

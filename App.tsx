@@ -4,7 +4,7 @@ import { db } from './db';
 import { Playlist, Video, VideoNotes } from './types';
 import { extractPlaylistId, fetchPlaylistDetails } from './services/youtubeService';
 import { generateVideoNotes, saveNotesToSupabase, getNotesForPlaylist, deleteNotesFromSupabase } from './services/notesService';
-import { onAuthStateChange, signOut, AuthUser } from './services/authService';
+import { onAuthStateChange, signOut, AuthUser, getCurrentUser } from './services/authService';
 import { getUserProgress, toggleVideoProgress, syncLocalProgressToSupabase } from './services/userProgress';
 import { savePlaylistToSupabase, getUserPlaylists, deletePlaylistFromSupabase, updatePlaylistAccessTime } from './services/playlistService';
 import { Sidebar } from './components/Sidebar';
@@ -59,6 +59,10 @@ const App: React.FC = () => {
           setUser(authUser);
           setIsAuthLoading(false);
         });
+
+        const current = await getCurrentUser();
+        setUser(current);
+        setIsAuthLoading(false);
 
         return () => {
           subscription?.unsubscribe();
