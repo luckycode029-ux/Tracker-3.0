@@ -36,38 +36,48 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
   });
 
   const qualityOptions = useMemo(() => {
-    const base = ['default', ...availableQualities];
+    const defaults = ['default', 'highres', 'hd1080', 'hd720', 'large', 'medium', 'small'];
+    const combined = [...availableQualities, ...defaults];
     const seen = new Set<string>();
-    return base.filter(q => {
-      if (seen.has(q)) return false;
-      seen.add(q);
-      return true;
-    });
+
+    const priority: Record<string, number> = {
+      'default': 100, // Keep Auto at the top
+      'highres': 10,
+      'hd1080': 9,
+      'hd720': 8,
+      'large': 7,
+      'medium': 6,
+      'small': 5
+    };
+
+    return combined
+      .filter(q => {
+        if (seen.has(q)) return false;
+        seen.add(q);
+        return true;
+      })
+      .sort((a, b) => (priority[b] || 0) - (priority[a] || 0));
   }, [availableQualities]);
 
   const qualityLabel = (q: string) => {
-    if (q === 'default') return 'Auto';
+    if (q === 'default') return 'Auto (Smart)';
     if (q === 'small') return '144p';
     if (q === 'medium') return '360p';
     if (q === 'large') return '480p';
     if (q === 'hd720') return '720p';
     if (q === 'hd1080') return '1080p';
-    if (q === 'highres') return 'High';
+    if (q === 'highres') return 'Ultra HD / 4K';
     return q;
   };
 
   const applyQuality = (q: string) => {
-    if (!playerRef.current) return;
+    if (!playerRef.current || !playerRef.current.setPlaybackQuality) return;
     try {
-      const levels: string[] = playerRef.current.getAvailableQualityLevels?.() || [];
-      if (q === 'default') {
-        playerRef.current.setPlaybackQuality('default');
-        return;
-      }
-      if (levels.includes(q)) {
-        playerRef.current.setPlaybackQuality(q);
-      }
-    } catch {}
+      // For 'default', we let YouTube handle the adaptive bitrate
+      playerRef.current.setPlaybackQuality(q);
+    } catch (err) {
+      console.warn('Failed to apply quality:', err);
+    }
   };
 
   useEffect(() => {
@@ -77,7 +87,6 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
         return;
       }
 
-      // Destroy existing player if it exists
       if (playerRef.current) {
         playerRef.current.destroy();
       }
@@ -89,18 +98,31 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
           modestbranding: 1,
           rel: 0,
           fs: 1,
-          playsinline: 1
+          playsinline: 1,
+          // Only pass vq if it's NOT 'default'. 
+          // If it's 'default', we omit it to let the adaptive engine run freely.
+          ...(quality !== 'default' ? { vq: quality } : {})
         },
         events: {
           onReady: (event: any) => {
             event.target.playVideo();
+            // Only force set if a specific non-auto quality is chosen
+            if (quality !== 'default') {
+              applyQuality(quality);
+            }
+
             try {
               const levels = event.target.getAvailableQualityLevels?.() || [];
-              setAvailableQualities(levels);
-              if (quality !== 'default' && levels.includes(quality)) {
-                event.target.setPlaybackQuality(quality);
+              if (levels.length > 0) {
+                setAvailableQualities(levels);
               }
-            } catch {}
+            } catch { }
+          },
+          onStateChange: (event: any) => {
+            // Re-apply specific quality on play if necessary
+            if (event.data === window.YT.PlayerState.PLAYING && quality !== 'default') {
+              applyQuality(quality);
+            }
           },
           onError: (event: any) => {
             console.error('YouTube Player Error:', event.data);
@@ -150,7 +172,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
                 onChange={(e) => {
                   const q = e.target.value;
                   setQuality(q);
-                  try { localStorage.setItem('preferredQuality', q); } catch {}
+                  try { localStorage.setItem('preferredQuality', q); } catch { }
                   applyQuality(q);
                 }}
                 className="bg-zinc-900 text-zinc-100 text-xs rounded-lg px-2 py-1 border border-zinc-700"
@@ -163,11 +185,10 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
             </div>
             <button
               onClick={() => onToggle(video.id)}
-              className={`flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-sm transition-all ${
-                isCompleted
-                  ? 'bg-green-600 text-white hover:bg-green-700'
-                  : 'bg-zinc-800 text-zinc-300 hover:bg-zinc-700'
-              }`}
+              className={`flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-sm transition-all ${isCompleted
+                ? 'bg-green-600 text-white hover:bg-green-700'
+                : 'bg-zinc-800 text-zinc-300 hover:bg-zinc-700'
+                }`}
             >
               {isCompleted ? <Check className="w-4 h-4" /> : <Circle className="w-4 h-4" />}
               {isCompleted ? 'Watched' : 'Mark Watched'}

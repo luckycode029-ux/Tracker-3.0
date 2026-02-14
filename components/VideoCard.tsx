@@ -132,9 +132,17 @@ export const VideoCard: React.FC<VideoCardProps> = ({
                 window.open('https://notebooklm.google.com', '_blank');
               });
             }}
-            className="px-4 py-2 rounded-full text-xs font-bold bg-purple-500 text-white hover:bg-purple-600"
+            className="group/notebook relative p-1 rounded-full transition-all duration-300 hover:scale-110 active:scale-95 bg-zinc-800 hover:bg-black border border-zinc-700 hover:border-zinc-500 shadow-lg"
+            title="Copy Link & Open NotebookLM"
           >
-            NotebookLM
+            <img 
+              src="/notebooklm-logo.svg" 
+              alt="NotebookLM" 
+              className="w-7 h-7 rounded-full"
+            />
+            <div className="absolute -top-10 left-1/2 -translate-x-1/2 px-2 py-1 bg-zinc-800 text-[10px] font-bold text-white rounded opacity-0 group-hover/notebook:opacity-100 transition-opacity pointer-events-none whitespace-nowrap border border-zinc-700 shadow-xl z-50">
+              Open NotebookLM
+            </div>
           </button>
         </div>
       </div>
