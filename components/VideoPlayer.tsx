@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState, useMemo } from 'react';
+import React, { useEffect } from 'react';
 import { Video } from '../types';
 import { X, Check, Circle, SkipForward } from 'lucide-react';
 
@@ -10,13 +10,6 @@ interface VideoPlayerProps {
   onPlayNext: () => void;
 }
 
-declare global {
-  interface Window {
-    YT: any;
-    onYouTubeIframeAPIReady: () => void;
-  }
-}
-
 export const VideoPlayer: React.FC<VideoPlayerProps> = ({
   video,
   isCompleted,
@@ -24,123 +17,6 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
   onClose,
   onPlayNext
 }) => {
-  const playerRef = useRef<any>(null);
-  const containerRef = useRef<HTMLDivElement>(null);
-  const [availableQualities, setAvailableQualities] = useState<string[]>([]);
-  const [quality, setQuality] = useState<string>(() => {
-    try {
-      return localStorage.getItem('preferredQuality') || 'default';
-    } catch {
-      return 'default';
-    }
-  });
-
-  const qualityOptions = useMemo(() => {
-    const defaults = ['default', 'highres', 'hd1080', 'hd720', 'large', 'medium', 'small'];
-    const combined = [...availableQualities, ...defaults];
-    const seen = new Set<string>();
-
-    const priority: Record<string, number> = {
-      'default': 100, // Keep Auto at the top
-      'highres': 10,
-      'hd1080': 9,
-      'hd720': 8,
-      'large': 7,
-      'medium': 6,
-      'small': 5
-    };
-
-    return combined
-      .filter(q => {
-        if (seen.has(q)) return false;
-        seen.add(q);
-        return true;
-      })
-      .sort((a, b) => (priority[b] || 0) - (priority[a] || 0));
-  }, [availableQualities]);
-
-  const qualityLabel = (q: string) => {
-    if (q === 'default') return 'Auto (Smart)';
-    if (q === 'small') return '144p';
-    if (q === 'medium') return '360p';
-    if (q === 'large') return '480p';
-    if (q === 'hd720') return '720p';
-    if (q === 'hd1080') return '1080p';
-    if (q === 'highres') return 'Ultra HD / 4K';
-    return q;
-  };
-
-  const applyQuality = (q: string) => {
-    if (!playerRef.current || !playerRef.current.setPlaybackQuality) return;
-    try {
-      // For 'default', we let YouTube handle the adaptive bitrate
-      playerRef.current.setPlaybackQuality(q);
-    } catch (err) {
-      console.warn('Failed to apply quality:', err);
-    }
-  };
-
-  useEffect(() => {
-    const initPlayer = () => {
-      if (!window.YT || !window.YT.Player) {
-        setTimeout(initPlayer, 100);
-        return;
-      }
-
-      if (playerRef.current) {
-        playerRef.current.destroy();
-      }
-
-      playerRef.current = new window.YT.Player('youtube-player', {
-        videoId: video.id,
-        playerVars: {
-          autoplay: 1,
-          modestbranding: 1,
-          rel: 0,
-          fs: 1,
-          playsinline: 1,
-          // Only pass vq if it's NOT 'default'. 
-          // If it's 'default', we omit it to let the adaptive engine run freely.
-          ...(quality !== 'default' ? { vq: quality } : {})
-        },
-        events: {
-          onReady: (event: any) => {
-            event.target.playVideo();
-            // Only force set if a specific non-auto quality is chosen
-            if (quality !== 'default') {
-              applyQuality(quality);
-            }
-
-            try {
-              const levels = event.target.getAvailableQualityLevels?.() || [];
-              if (levels.length > 0) {
-                setAvailableQualities(levels);
-              }
-            } catch { }
-          },
-          onStateChange: (event: any) => {
-            // Re-apply specific quality on play if necessary
-            if (event.data === window.YT.PlayerState.PLAYING && quality !== 'default') {
-              applyQuality(quality);
-            }
-          },
-          onError: (event: any) => {
-            console.error('YouTube Player Error:', event.data);
-          }
-        }
-      });
-    };
-
-    initPlayer();
-
-    return () => {
-      if (playerRef.current) {
-        playerRef.current.destroy();
-        playerRef.current = null;
-      }
-    };
-  }, [video.id]); // Re-initialize when video.id changes
-
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose();
@@ -148,6 +24,9 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
     window.addEventListener('keydown', handleEscape);
     return () => window.removeEventListener('keydown', handleEscape);
   }, [onClose]);
+
+  // Build embed URL with proper parameters for automatic quality selection
+  const embedUrl = `https://www.youtube.com/embed/${video.id}?autoplay=1&vq=hd720&rel=0&modestbranding=1&showinfo=0`;
 
   return (
     <div className="fixed inset-0 z-50 bg-black/95 flex flex-col">
@@ -165,24 +44,6 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
           </div>
 
           <div className="flex items-center gap-2 flex-shrink-0">
-            <div className="flex items-center gap-2 bg-zinc-800 rounded-xl px-2 py-1">
-              <span className="text-xs text-zinc-300 font-bold">Quality</span>
-              <select
-                value={quality}
-                onChange={(e) => {
-                  const q = e.target.value;
-                  setQuality(q);
-                  try { localStorage.setItem('preferredQuality', q); } catch { }
-                  applyQuality(q);
-                }}
-                className="bg-zinc-900 text-zinc-100 text-xs rounded-lg px-2 py-1 border border-zinc-700"
-                title="Playback quality"
-              >
-                {qualityOptions.map((q) => (
-                  <option key={q} value={q}>{qualityLabel(q)}</option>
-                ))}
-              </select>
-            </div>
             <button
               onClick={() => onToggle(video.id)}
               className={`flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-sm transition-all ${isCompleted
@@ -213,9 +74,15 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
       </div>
 
       {/* Video Player */}
-      <div className="flex-grow flex items-center justify-center p-6" ref={containerRef}>
+      <div className="flex-grow flex items-center justify-center p-6">
         <div className="w-full max-w-7xl aspect-video bg-black rounded-2xl overflow-hidden shadow-2xl">
-          <div id="youtube-player" className="w-full h-full"></div>
+          <iframe
+            src={embedUrl}
+            title={video.title}
+            className="w-full h-full border-0"
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+            allowFullScreen
+          />
         </div>
       </div>
     </div>

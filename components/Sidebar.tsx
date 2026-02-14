@@ -1,7 +1,7 @@
 
-import React, { useState } from 'react';
+import React from 'react';
 import { Playlist } from '../types';
-import { Youtube, Trash2, PlusCircle, ChevronLeft, LayoutGrid, Keyboard, Heart, X } from 'lucide-react';
+import { Youtube, Trash2, PlusCircle, ChevronLeft, LayoutGrid, Heart } from 'lucide-react';
 
 interface SidebarProps {
   playlists: Playlist[];
@@ -22,21 +22,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
   isOpen,
   onToggle
 }) => {
-  const [showShortcuts, setShowShortcuts] = useState(false);
-
-  const shortcuts = [
-    { label: 'Navigation', key: '1-9' },
-    { label: 'New Playlist', key: 'N' },
-    { label: 'Toggle Watched', key: 'C / M' },
-    { label: 'Focus Search', key: '/' },
-    { label: 'Exit Player', key: 'ESC' },
-  ];
 
   return (
-    <aside 
-      className={`bg-zinc-950 border-r border-zinc-900 flex flex-col transition-all duration-300 ease-in-out ${
-        isOpen ? 'w-80 opacity-100' : 'w-0 opacity-0 pointer-events-none'
-      } overflow-hidden`}
+    <aside
+      className={`bg-zinc-950 border-r border-zinc-900 flex flex-col transition-all duration-300 ease-in-out ${isOpen ? 'w-80 opacity-100' : 'w-0 opacity-0 pointer-events-none'
+        } overflow-hidden`}
       style={{ flexShrink: 0 }}
     >
       <div className="w-80 h-full flex flex-col">
@@ -86,7 +76,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             <div className="text-center py-16 px-6 opacity-40">
               <Youtube className="w-10 h-10 text-zinc-700 mx-auto mb-4" />
               <p className="text-zinc-500 text-[10px] font-black uppercase tracking-widest leading-loose">
-                Empty Library<br/>
+                Empty Library<br />
                 <span className="text-zinc-700 font-bold">Paste a URL to begin</span>
               </p>
             </div>
@@ -94,11 +84,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
             playlists.map((playlist) => (
               <div
                 key={playlist.id}
-                className={`group relative rounded-2xl overflow-hidden transition-all cursor-pointer ${
-                  activePlaylistId === playlist.id
-                    ? 'bg-zinc-900 ring-1 ring-zinc-800 shadow-2xl'
-                    : 'bg-transparent hover:bg-zinc-900/50'
-                }`}
+                className={`group relative rounded-2xl overflow-hidden transition-all cursor-pointer ${activePlaylistId === playlist.id
+                  ? 'bg-zinc-900 ring-1 ring-zinc-800 shadow-2xl'
+                  : 'bg-transparent hover:bg-zinc-900/50'
+                  }`}
                 onClick={() => onSelect(playlist.id)}
               >
                 <div className="flex items-center gap-4 p-3">
@@ -134,43 +123,20 @@ export const Sidebar: React.FC<SidebarProps> = ({
           )}
         </div>
 
-        {/* Footer Navigation Section with Keyboard Shortcuts */}
-        <div className="p-6 space-y-6 relative border-t border-zinc-900">
-          <div className="relative">
-            {/* Popover Controls UI */}
-            {showShortcuts && (
-              <div className="absolute bottom-full left-0 mb-4 w-full bg-[#161618] border border-zinc-800 rounded-3xl p-6 shadow-2xl animate-in fade-in slide-in-from-bottom-2 duration-200 z-[60]">
-                <div className="flex items-center justify-between mb-6">
-                  <h4 className="text-[10px] font-black text-zinc-400 uppercase tracking-[0.2em]">Controls</h4>
-                  <button onClick={() => setShowShortcuts(false)} className="text-zinc-600 hover:text-white transition-colors">
-                    <X className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-                <div className="space-y-4">
-                  {shortcuts.map((s) => (
-                    <div key={s.label} className="flex items-center justify-between">
-                      <span className="text-sm text-zinc-500 font-medium">{s.label}</span>
-                      <span className="text-sm font-black text-white">{s.key}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
+        {/* Footer Section */}
+        <div className="p-6 mt-auto border-t border-zinc-900">
+          <div className="flex flex-col gap-2">
+            <div className="flex items-center gap-2 text-zinc-500">
+              <div className="w-0.5 h-3 bg-zinc-700"></div>
+              <div className="w-0.5 h-3 bg-zinc-700"></div>
+              <div className="w-0.5 h-3 bg-zinc-700 transform -skew-x-12"></div>
+              <span className="text-xs font-medium text-zinc-400">v1.0 Premium Beta</span>
+            </div>
 
-            <button 
-              onClick={() => setShowShortcuts(!showShortcuts)}
-              className="w-full flex items-center gap-4 p-4 bg-zinc-900/50 hover:bg-zinc-900 border border-zinc-800/50 rounded-2xl transition-all group"
-            >
-              <div className="p-2 bg-zinc-800 rounded-lg group-hover:bg-zinc-700 transition-colors">
-                <Keyboard className="w-4 h-4 text-zinc-100" />
-              </div>
-              <span className="text-sm font-bold text-zinc-100">Keyboard Shortcuts</span>
-            </button>
-          </div>
-          
-          <div className="flex items-center gap-2 text-[10px] font-black text-zinc-700 uppercase tracking-widest px-1">
-            <span>Made by Lucky</span>
-            <Heart className="w-3 h-3 text-red-600/40 fill-current" />
+            <div className="flex items-center gap-2 text-[10px] font-black text-zinc-600 uppercase tracking-widest">
+              <span>MADE BY LUCKY</span>
+              <Heart className="w-3 h-3 text-red-600 fill-current" />
+            </div>
           </div>
         </div>
       </div>
