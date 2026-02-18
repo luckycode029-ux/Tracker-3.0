@@ -657,6 +657,7 @@ const App: React.FC = () => {
         }}
         isOpen={isSidebarOpen}
         onToggle={() => setIsSidebarOpen(prev => !prev)}
+        credits={credits}
       />
 
       <main className="flex-grow flex flex-col relative overflow-hidden">

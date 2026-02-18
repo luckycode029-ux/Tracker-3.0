@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { Playlist } from '../types';
-import { Youtube, Trash2, PlusCircle, ChevronLeft, LayoutGrid, Heart } from 'lucide-react';
+import { Youtube, Trash2, PlusCircle, ChevronLeft, LayoutGrid, Heart, Coins } from 'lucide-react';
 
 interface SidebarProps {
   playlists: Playlist[];
@@ -11,6 +11,7 @@ interface SidebarProps {
   onNew: () => void;
   isOpen: boolean;
   onToggle: () => void;
+  credits: number;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
@@ -20,7 +21,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onDelete,
   onNew,
   isOpen,
-  onToggle
+  onToggle,
+  credits
 }) => {
 
   return (
@@ -123,8 +125,31 @@ export const Sidebar: React.FC<SidebarProps> = ({
           )}
         </div>
 
+        {/* Credit Info Section */}
+        <div className="px-6 py-4 mt-auto border-t border-zinc-900/50">
+          <div className="bg-zinc-900/40 rounded-xl p-3 border border-zinc-800/60 backdrop-blur-sm">
+            <div className="flex items-center justify-between mb-3 pb-2 border-b border-zinc-800/50">
+              <span className="text-[10px] font-black uppercase tracking-wider text-zinc-500">Balance</span>
+              <div className="flex items-center gap-1.5">
+                <Coins className="w-3.5 h-3.5 text-yellow-500" />
+                <span className="text-sm font-bold text-white">{credits}</span>
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between text-[10px]">
+                <span className="text-zinc-500 font-medium">Generate Notes</span>
+                <span className="font-bold text-zinc-400 bg-zinc-900 px-1.5 py-0.5 rounded">-10</span>
+              </div>
+              <div className="flex items-center justify-between text-[10px]">
+                <span className="text-zinc-500 font-medium">Fetch Playlist</span>
+                <span className="font-bold text-zinc-400 bg-zinc-900 px-1.5 py-0.5 rounded">-15</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
         {/* Footer Section */}
-        <div className="p-6 mt-auto border-t border-zinc-900">
+        <div className="px-6 py-6 border-t border-zinc-900">
           <div className="flex flex-col gap-2">
             <div className="flex items-center gap-2 text-zinc-500">
               <div className="w-0.5 h-3 bg-zinc-700"></div>
