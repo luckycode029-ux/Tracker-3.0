@@ -37,10 +37,9 @@ export async function generateVideoNotes(
     // Try Vercel API route first, fallback to Netlify function
     // In production (Vercel), use /api/groq
     // For local dev with Netlify, use /.netlify/functions/groq
-    const apiUrl = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
-      ? '/.netlify/functions/groq'  // Local development with Netlify
-      : '/api/groq';  // Production on Vercel or local with Vercel dev
-    
+    // Use /api/groq for Vercel (both local and production)
+    const apiUrl = '/api/groq';
+
     const response = await fetch(apiUrl, {
       method: 'POST',
       headers: {

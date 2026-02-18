@@ -7,6 +7,7 @@ import { generateVideoNotes, saveNotesToSupabase, getNotesForPlaylist, deleteNot
 import { onAuthStateChange, signOut, AuthUser, getCurrentUser } from './services/authService';
 import { getUserProgress, toggleVideoProgress, syncLocalProgressToSupabase } from './services/userProgress';
 import { savePlaylistToSupabase, getUserPlaylists, deletePlaylistFromSupabase, updatePlaylistAccessTime } from './services/playlistService';
+import { creditService } from './services/creditService';
 import { Sidebar } from './components/Sidebar';
 import { PlaylistInput } from './components/PlaylistInput';
 import { VideoCard } from './components/VideoCard';
@@ -15,7 +16,7 @@ import { VideoPlayer } from './components/VideoPlayer';
 import { NotesModal } from './components/NotesModal';
 import { Login } from './components/Login';
 import { Signup } from './components/Signup';
-import { Youtube, History, AlertCircle, Layers, RefreshCw, Sparkles, PanelLeftOpen, LogOut, LogIn } from 'lucide-react';
+import { Youtube, History, AlertCircle, Layers, RefreshCw, Sparkles, PanelLeftOpen, LogOut, LogIn, Coins } from 'lucide-react';
 
 const App: React.FC = () => {
   const [user, setUser] = useState<AuthUser | null>(null);
@@ -23,6 +24,7 @@ const App: React.FC = () => {
   const [authView, setAuthView] = useState<'login' | 'signup'>('login');
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [pendingPlaylistUrl, setPendingPlaylistUrl] = useState<string | null>(null);
+  const [credits, setCredits] = useState<number>(0);
 
   const [playlists, setPlaylists] = useState<Playlist[]>([]);
   const [activePlaylistId, setActivePlaylistId] = useState<string | null>(null);
@@ -36,7 +38,7 @@ const App: React.FC = () => {
   const [activeVideo, setActiveVideo] = useState<Video | null>(null);
   const [notesVideo, setNotesVideo] = useState<Video | null>(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
-  
+
   const [currentPartIndex, setCurrentPartIndex] = useState(0);
   const searchInputRef = useRef<HTMLInputElement>(null);
 
@@ -55,13 +57,24 @@ const App: React.FC = () => {
     const setupAuth = async () => {
       setIsAuthLoading(true);
       try {
-        const subscription = onAuthStateChange((authUser) => {
+        const subscription = onAuthStateChange(async (authUser) => {
           setUser(authUser);
+          if (authUser) {
+            const currentCredits = await creditService.getCredits().catch(() => 0); // Default to 0 on error
+            // Correctly handle possible null return from getCredits
+            setCredits(currentCredits ?? 0);
+          } else {
+            setCredits(0);
+          }
           setIsAuthLoading(false);
         });
 
         const current = await getCurrentUser();
         setUser(current);
+        if (current) {
+          const currentCredits = await creditService.getCredits().catch(() => 0);
+          setCredits(currentCredits ?? 0);
+        }
         setIsAuthLoading(false);
 
         return () => {
@@ -83,11 +96,11 @@ const App: React.FC = () => {
         const url = pendingPlaylistUrl;
         setPendingPlaylistUrl(null);
         setShowAuthModal(false);
-        
+
         const playlistId = extractPlaylistId(url);
-        if (!playlistId) { 
-          setError('Invalid YouTube Playlist URL'); 
-          return; 
+        if (!playlistId) {
+          setError('Invalid YouTube Playlist URL');
+          return;
         }
 
         const existing = await db.playlists.get(playlistId);
@@ -138,7 +151,7 @@ const App: React.FC = () => {
   };
 
   // --- Derived State (Memoized Values) ---
-  
+
   const playlistSegments = useMemo(() => {
     if (activeVideos.length === 0) return [];
     let numParts = 1;
@@ -154,17 +167,17 @@ const App: React.FC = () => {
     return segments;
   }, [activeVideos]);
 
-  const activePlaylist = useMemo(() => 
-    playlists.find(p => p.id === activePlaylistId), 
+  const activePlaylist = useMemo(() =>
+    playlists.find(p => p.id === activePlaylistId),
     [playlists, activePlaylistId]
   );
 
-  const completedCount = useMemo(() => 
-    Object.values(progressMap).filter(Boolean).length, 
+  const completedCount = useMemo(() =>
+    Object.values(progressMap).filter(Boolean).length,
     [progressMap]
   );
 
-  const displayedVideos = useMemo(() => 
+  const displayedVideos = useMemo(() =>
     playlistSegments[currentPartIndex] || [],
     [playlistSegments, currentPartIndex]
   );
@@ -182,7 +195,7 @@ const App: React.FC = () => {
         if (user) {
           console.log('🔄 Loading playlists from Supabase for user:', user.id);
           const supabasePlaylists = await getUserPlaylists(user.id);
-          
+
           if (supabasePlaylists.length > 0) {
             // Sync Supabase playlists to local DB
             await db.transaction('rw', [db.playlists], async () => {
@@ -193,8 +206,8 @@ const App: React.FC = () => {
                   await db.playlists.add(playlist);
                 } else {
                   // Update lastAccessed from Supabase
-                  await db.playlists.update(playlist.id, { 
-                    lastAccessed: playlist.lastAccessed 
+                  await db.playlists.update(playlist.id, {
+                    lastAccessed: playlist.lastAccessed
                   });
                 }
               }
@@ -210,7 +223,7 @@ const App: React.FC = () => {
         console.error("Failed to load playlists:", err);
       }
     };
-    
+
     // Load data when component mounts or user changes
     loadInitialData();
   }, [user]);
@@ -249,11 +262,11 @@ const App: React.FC = () => {
     try {
       const { playlist, videos } = await fetchPlaylistDetails(id, forceRefresh);
       await db.transaction('rw', [db.playlists, db.videos], async () => {
-        await db.playlists.update(id, { 
-          videoCount: playlist.videoCount, 
+        await db.playlists.update(id, {
+          videoCount: playlist.videoCount,
           title: playlist.title,
           thumbnail: playlist.thumbnail,
-          lastAccessed: Date.now() 
+          lastAccessed: Date.now()
         });
         await db.videos.bulkPut(videos.map(v => ({ ...v, playlistId: id })));
       });
@@ -262,7 +275,7 @@ const App: React.FC = () => {
       setActiveVideos(updatedVideos.sort((a, b) => a.position - b.position));
       const allPlaylists = await db.playlists.orderBy('lastAccessed').reverse().toArray();
       setPlaylists(allPlaylists);
-      
+
       if (forceRefresh) {
         setError(null);
         console.log('✅ Playlist refreshed from YouTube API');
@@ -310,7 +323,7 @@ const App: React.FC = () => {
 
           // Clear local progress after syncing
           await db.progress.where('playlistId').equals(activePlaylistId).delete();
-          
+
           // Reload from Supabase to confirm
           const updatedProgress = await getUserProgress(user.id, activePlaylistId);
           setProgressMap(updatedProgress);
@@ -326,12 +339,12 @@ const App: React.FC = () => {
         if (localNotes.length > 0) {
           const nMap: Record<string, VideoNotes> = {};
           localNotes.forEach(n => { nMap[n.videoId] = n; });
-          
+
           // Merge: Supabase takes priority (newer), but include local ones too
           const mergedNotes = { ...nMap, ...supabaseNotes };
           setNotesMap(mergedNotes);
         }
-        
+
         syncActivePlaylist(activePlaylistId);
       } catch (err) {
         console.error('Error loading content:', err);
@@ -357,6 +370,22 @@ const App: React.FC = () => {
 
     const playlistId = extractPlaylistId(url);
     if (!playlistId) { setError('Invalid YouTube Playlist URL'); return; }
+
+    // Check credits before proceeding (Cost: 15)
+    if (user) {
+      // Optimistic check (server will verify too, but good for UI feedback)
+      if (credits < 15) {
+        setError('Insufficient credits. Search costs 15 credits.');
+        return;
+      }
+
+      const result = await creditService.deductCredits(15, 'playlist_search');
+      if (!result.success) {
+        setError(result.message || 'Insufficient credits');
+        return;
+      }
+      setCredits(prev => (result.newCredits !== undefined ? result.newCredits : prev - 15));
+    }
 
     const existing = await db.playlists.get(playlistId);
     if (existing) {
@@ -437,7 +466,35 @@ const App: React.FC = () => {
 
   const handleGenerateNotes = async (forceRegenerate: boolean = false) => {
     if (!notesVideo || !activePlaylistId || !user) return;
-    
+
+    // Check credits (Cost: 10)
+    // Only deduct if NOT merely regenerating from cache? 
+    // Requirement says "10 for note generation". Usually implies API call. 
+    // If it's cached, maybe free? 
+    // "generateVideoNotes" handles caching. If forceRegenerate is false and cache exists, it returns cache.
+    // The credit deduction should probably happen ONLY if we actually hit the API.
+    // However, the `creditService` call happens here in the UI handler. 
+    // Simplest approach: Deduct for the *request* to generate.
+    // Refinement: The user explicitly clicks "Generate".
+
+    // Let's deduct 10 credits.
+    if (credits < 10) {
+      setError('Insufficient credits. Note generation costs 10 credits.'); // Show in modal? Modal might need error prop.
+      // For now, setting app-level error might be visible if modal doesn't block it, 
+      // but let's just alert or use a specific error state for the modal if possible.
+      // The modal has `onGenerate` but not an error display prop in `App.tsx` usage.
+      // We'll set the main error state, which might show up in the background or we can alert.
+      alert('Insufficient credits. You need 10 credits to generate notes.');
+      return;
+    }
+
+    const result = await creditService.deductCredits(10, 'note_generation');
+    if (!result.success) {
+      alert(result.message || 'Insufficient credits');
+      return;
+    }
+    setCredits(prev => (result.newCredits !== undefined ? result.newCredits : prev - 10));
+
     setIsGeneratingNotes(true);
     setError(null);
     try {
@@ -465,7 +522,22 @@ const App: React.FC = () => {
       console.log('✅ Notes saved to Supabase');
     } catch (err: any) {
       console.error('❌ Generation Error:', err);
-      setError(err.message || 'Notes generation failed.');
+
+      // REFUND CREDITS if generation fails
+      console.log('🔄 Refunding credits due to failure...');
+      const undoResult = await creditService.deductCredits(-10, 'refund_note_generation_failed');
+      if (undoResult.success && undoResult.newCredits !== undefined) {
+        setCredits(undoResult.newCredits);
+      } else {
+        setCredits(prev => prev + 10);
+      }
+
+      // Check for common "Unexpected end of JSON" error (usually means 404/Function not running)
+      if (err.message && err.message.includes('JSON')) {
+        setError('Backend function not running. Please ensure you are running "netlify dev" or your API server is active.');
+      } else {
+        setError(err.message || 'Notes generation failed. Credits have been refunded.');
+      }
     } finally {
       setIsGeneratingNotes(false);
     }
@@ -573,7 +645,7 @@ const App: React.FC = () => {
   // --- Main App UI ---
   return (
     <div className="flex h-screen w-screen bg-[#0f0f0f] text-zinc-100 overflow-hidden relative">
-      <Sidebar 
+      <Sidebar
         playlists={playlists}
         activePlaylistId={activePlaylistId}
         onSelect={setActivePlaylistId}
@@ -595,7 +667,11 @@ const App: React.FC = () => {
               <>
                 <div className="text-right hidden sm:block">
                   <p className="text-sm font-medium text-white">{user.email?.split('@')[0]}</p>
-                  <p className="text-xs text-zinc-500">{user.email}</p>
+                  <div className="flex items-center justify-end gap-1.5 text-xs text-zinc-400">
+                    <Coins className="w-3.5 h-3.5 text-yellow-500" />
+                    <span className="font-bold text-yellow-500">{credits}</span>
+                    <span>Credits</span>
+                  </div>
                 </div>
                 <button
                   onClick={handleSignOut}
@@ -626,7 +702,7 @@ const App: React.FC = () => {
         </div>
 
         {!isSidebarOpen && (
-          <button 
+          <button
             onClick={() => setIsSidebarOpen(true)}
             className="fixed top-6 left-0 z-40 pl-4 pr-3 py-4 bg-zinc-900 border-y border-r border-zinc-800 rounded-r-2xl text-zinc-500 hover:text-white hover:bg-zinc-800 transition-all shadow-2xl group animate-in slide-in-from-left-4"
             title="Expand Sidebar (B)"
@@ -637,7 +713,7 @@ const App: React.FC = () => {
 
         {activePlaylistId && activePlaylist ? (
           <>
-            <GlobalProgress 
+            <GlobalProgress
               playlistTitle={activePlaylist.title}
               completedCount={completedCount}
               totalCount={activeVideos.length}
@@ -657,11 +733,10 @@ const App: React.FC = () => {
                     <button
                       key={idx}
                       onClick={() => setCurrentPartIndex(idx)}
-                      className={`flex-grow py-2.5 rounded-2xl text-[11px] font-black uppercase tracking-widest transition-all duration-300 relative group/part ${
-                        currentPartIndex === idx 
-                          ? 'bg-red-600 text-white shadow-xl shadow-red-600/20' 
-                          : 'text-zinc-600 hover:text-zinc-300 hover:bg-zinc-800'
-                      }`}
+                      className={`flex-grow py-2.5 rounded-2xl text-[11px] font-black uppercase tracking-widest transition-all duration-300 relative group/part ${currentPartIndex === idx
+                        ? 'bg-red-600 text-white shadow-xl shadow-red-600/20'
+                        : 'text-zinc-600 hover:text-zinc-300 hover:bg-zinc-800'
+                        }`}
                     >
                       Part {idx + 1}
                       <span className="absolute -top-1 -right-1 w-5 h-5 bg-zinc-900 border border-zinc-800 rounded-lg text-[8px] flex items-center justify-center opacity-0 group-hover/part:opacity-100 transition-opacity font-black">
@@ -682,7 +757,7 @@ const App: React.FC = () => {
                   </div>
                 )}
                 {displayedVideos.map((video) => (
-                  <VideoCard 
+                  <VideoCard
                     key={video.id}
                     video={video}
                     isCompleted={!!progressMap[video.id]}
@@ -692,11 +767,11 @@ const App: React.FC = () => {
                     onViewNotes={setNotesVideo}
                   />
                 ))}
-                
+
                 {(isLoading || isSyncing) && activeVideos.length === 0 && (
-                   <div className="flex items-center justify-center py-20">
-                      <div className="w-8 h-8 border-4 border-red-600 border-t-transparent rounded-full animate-spin"></div>
-                   </div>
+                  <div className="flex items-center justify-center py-20">
+                    <div className="w-8 h-8 border-4 border-red-600 border-t-transparent rounded-full animate-spin"></div>
+                  </div>
                 )}
               </div>
             </div>
@@ -714,10 +789,10 @@ const App: React.FC = () => {
             </div>
 
             <div className="w-full max-w-2xl px-4">
-              <PlaylistInput 
+              <PlaylistInput
                 ref={searchInputRef}
-                onSearch={handleSearch} 
-                isLoading={isLoading} 
+                onSearch={handleSearch}
+                isLoading={isLoading}
               />
               {error && (
                 <div className="mt-6 flex items-center justify-center gap-2 p-4 bg-red-500/10 border border-red-500/20 rounded-2xl text-red-500 text-sm font-semibold">
@@ -750,7 +825,7 @@ const App: React.FC = () => {
 
       {/* Embedded Player Overlay */}
       {activeVideo && (
-        <VideoPlayer 
+        <VideoPlayer
           video={activeVideo}
           isCompleted={!!progressMap[activeVideo.id]}
           onToggle={toggleVideoStatus}

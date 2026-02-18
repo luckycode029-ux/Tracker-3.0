@@ -1,4 +1,10 @@
 
+export interface UserProfile {
+  id: string;
+  credits: number;
+  last_daily_bonus: string;
+}
+
 export interface Video {
   id: string;
   title: string;
