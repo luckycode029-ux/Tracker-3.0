@@ -17,7 +17,8 @@ export const signInWithGoogle = async () => {
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider: 'google',
     options: {
-      redirectTo: `${(import.meta.env.VITE_PUBLIC_SITE_URL ?? window.location.origin)}/`,
+      // Directly return to current app origin after Google auth
+      redirectTo: window.location.origin,
     },
   });
 
