@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { db } from './db';
-import { Playlist, Video, VideoNotes } from './types';
+import { Playlist, Video, VideoNotes, Question, TestResult } from './types';
 import { extractPlaylistId, fetchPlaylistDetails } from './services/youtubeService';
 import { generateVideoNotes, saveNotesToSupabase, getNotesForPlaylist, deleteNotesFromSupabase } from './services/notesService';
 import { onAuthStateChange, signOut, AuthUser, getCurrentUser } from './services/authService';
@@ -16,6 +16,8 @@ import { VideoPlayer } from './components/VideoPlayer';
 import { NotesModal } from './components/NotesModal';
 import { Login } from './components/Login';
 import { Signup } from './components/Signup';
+import { TestModal } from './components/TestModal';
+import { testService } from './services/testService';
 import { Youtube, History, AlertCircle, Layers, RefreshCw, Sparkles, PanelLeftOpen, LogOut, LogIn, Coins } from 'lucide-react';
 
 const App: React.FC = () => {
@@ -37,6 +39,10 @@ const App: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [activeVideo, setActiveVideo] = useState<Video | null>(null);
   const [notesVideo, setNotesVideo] = useState<Video | null>(null);
+  const [testVideo, setTestVideo] = useState<Video | null>(null);
+  const [isGeneratingTest, setIsGeneratingTest] = useState(false);
+  const [testMap, setTestMap] = useState<Record<string, Question[]>>({});
+  const [testResultsMap, setTestResultsMap] = useState<Record<string, TestResult>>({});
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
   const [currentPartIndex, setCurrentPartIndex] = useState(0);
@@ -345,6 +351,11 @@ const App: React.FC = () => {
           setNotesMap(mergedNotes);
         }
 
+        // Load test results from Supabase
+        console.log('📊 Loading test results from Supabase for playlist:', activePlaylistId);
+        const supabaseResults = await testService.getResultsForPlaylist(user.id, activePlaylistId);
+        setTestResultsMap(supabaseResults);
+
         syncActivePlaylist(activePlaylistId);
       } catch (err) {
         console.error('Error loading content:', err);
@@ -542,6 +553,100 @@ const App: React.FC = () => {
       setIsGeneratingNotes(false);
     }
   };
+
+  const handleGenerateTest = async () => {
+    if (!testVideo || !activePlaylistId || !user) return;
+
+    // Check credits (Cost: 5)
+    if (credits < 5) {
+      alert('Insufficient credits. Test generation costs 5 credits.');
+      return;
+    }
+
+    const result = await creditService.deductCredits(5, 'test_generation');
+    if (!result.success) {
+      alert(result.message || 'Insufficient credits');
+      return;
+    }
+    setCredits(prev => (result.newCredits !== undefined ? result.newCredits : prev - 5));
+
+    setIsGeneratingTest(true);
+    setError(null);
+    try {
+      const questions = await testService.generateTest(
+        user.id,
+        testVideo.id,
+        testVideo.title,
+        activePlaylistId
+      );
+
+      setTestMap(prev => ({ ...prev, [testVideo.id]: questions }));
+      console.log('✅ Test generated and saved');
+    } catch (err: any) {
+      console.error('❌ Test Generation Error:', err);
+
+      // REFUND
+      const undoResult = await creditService.deductCredits(-5, 'refund_test_generation_failed');
+      if (undoResult.success && undoResult.newCredits !== undefined) {
+        setCredits(undoResult.newCredits);
+      } else {
+        setCredits(prev => prev + 5);
+      }
+
+      alert(err.message || 'Test generation failed. Credits have been refunded.');
+    } finally {
+      setIsGeneratingTest(false);
+    }
+  };
+
+  const handleTakeTest = async (video: Video) => {
+    setTestVideo(video);
+    if (activePlaylistId && user) {
+      // Pre-check if test already exists in cache or Supabase
+      const { questions, result } = await testService.getTest(user.id, video.id, activePlaylistId);
+      if (questions) {
+        setTestMap(prev => ({ ...prev, [video.id]: questions }));
+      }
+      if (result) {
+        setTestResultsMap(prev => ({ ...prev, [video.id]: result }));
+      }
+    }
+  };
+
+  const handleFinishTest = async (score: number, answers: number[]) => {
+    if (!testVideo || !activePlaylistId || !user) return;
+
+    let performanceLevel: 'Needs Improvement' | 'Good' | 'Excellent' = 'Needs Improvement';
+    if (score >= 8) performanceLevel = 'Excellent';
+    else if (score >= 5) performanceLevel = 'Good';
+
+    const result: TestResult = {
+      videoId: testVideo.id,
+      playlistId: activePlaylistId,
+      score,
+      totalQuestions: 10,
+      userAnswers: answers,
+      performanceLevel,
+      createdAt: Date.now()
+    };
+
+    const success = await testService.saveTestResult(
+      user.id,
+      testVideo.id,
+      activePlaylistId,
+      score,
+      answers,
+      performanceLevel
+    );
+
+    if (success) {
+      setTestResultsMap(prev => ({
+        ...prev,
+        [testVideo.id]: result
+      }));
+    }
+  };
+
 
   const refreshPlaylist = async () => {
     if (!activePlaylistId) return;
@@ -763,9 +868,12 @@ const App: React.FC = () => {
                     video={video}
                     isCompleted={!!progressMap[video.id]}
                     hasNotes={!!notesMap[video.id]}
+                    hasTest={!!testResultsMap[video.id]}
+                    canAffordTest={credits >= 5}
                     onToggle={toggleVideoStatus}
                     onWatch={setActiveVideo}
                     onViewNotes={setNotesVideo}
+                    onTakeTest={handleTakeTest}
                   />
                 ))}
 
@@ -849,6 +957,18 @@ const App: React.FC = () => {
 
       {/* Auth Modal */}
       <AuthModal />
+
+      {testVideo && (
+        <TestModal
+          video={testVideo}
+          test={testMap[testVideo.id] || null}
+          previousResult={testResultsMap[testVideo.id] || null}
+          isGenerating={isGeneratingTest}
+          onClose={() => setTestVideo(null)}
+          onGenerate={handleGenerateTest}
+          onSubmit={handleFinishTest}
+        />
+      )}
     </div>
   );
 };

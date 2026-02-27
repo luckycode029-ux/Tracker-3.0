@@ -1,30 +1,36 @@
 
 import React from 'react';
-import { CheckCircle, Circle, ExternalLink, Play, FileText, Sparkles } from 'lucide-react';
+import { CheckCircle, Circle, ExternalLink, Play, FileText, Sparkles, ClipboardList, Brain } from 'lucide-react';
 import { Video } from '../types';
 
 interface VideoCardProps {
   video: Video;
   isCompleted: boolean;
   hasNotes?: boolean;
+  hasTest?: boolean;
+  canAffordTest?: boolean;
   onToggle: (videoId: string) => void;
   onWatch: (video: Video) => void;
   onViewNotes: (video: Video) => void;
+  onTakeTest: (video: Video) => void;
 }
 
 export const VideoCard: React.FC<VideoCardProps> = ({
   video,
   isCompleted,
   hasNotes = false,
+  hasTest = false,
+  canAffordTest = true,
   onToggle,
   onWatch,
-  onViewNotes
+  onViewNotes,
+  onTakeTest
 }) => {
   return (
     <div
       className={`group flex flex-col sm:flex-row items-start gap-4 p-3 rounded-xl transition-all duration-300 border ${isCompleted
-          ? 'bg-zinc-900/40 border-green-500/20 opacity-70'
-          : 'bg-zinc-900 hover:bg-zinc-800/80 border-transparent hover:border-zinc-700 shadow-xl'
+        ? 'bg-zinc-900/40 border-green-500/20 opacity-70'
+        : 'bg-zinc-900 hover:bg-zinc-800/80 border-transparent hover:border-zinc-700 shadow-xl'
         }`}
     >
       <div
@@ -68,8 +74,8 @@ export const VideoCard: React.FC<VideoCardProps> = ({
                 onViewNotes(video);
               }}
               className={`p-1.5 rounded-lg transition-all border ${hasNotes
-                  ? 'text-blue-500 bg-blue-500/10 border-blue-500/20 hover:bg-blue-500/20'
-                  : 'text-zinc-500 bg-zinc-800 border-zinc-700 hover:text-white'
+                ? 'text-blue-500 bg-blue-500/10 border-blue-500/20 hover:bg-blue-500/20'
+                : 'text-zinc-500 bg-zinc-800 border-zinc-700 hover:text-white'
                 }`}
               title={hasNotes ? "View Notes" : "Generate Notes"}
             >
@@ -94,8 +100,8 @@ export const VideoCard: React.FC<VideoCardProps> = ({
           <button
             onClick={() => onToggle(video.id)}
             className={`flex items-center gap-2 px-4 py-2 rounded-full text-xs font-bold transition-all ${isCompleted
-                ? 'bg-green-500/10 text-green-500 border border-green-500/50 hover:bg-green-500/20'
-                : 'bg-zinc-800 text-zinc-300 border border-zinc-700 hover:bg-zinc-700 hover:text-white'
+              ? 'bg-green-500/10 text-green-500 border border-green-500/50 hover:bg-green-500/20'
+              : 'bg-zinc-800 text-zinc-300 border border-zinc-700 hover:bg-zinc-700 hover:text-white'
               }`}
           >
             {isCompleted ? <CheckCircle className="w-3.5 h-3.5" /> : <Circle className="w-3.5 h-3.5" />}
@@ -113,12 +119,26 @@ export const VideoCard: React.FC<VideoCardProps> = ({
           <button
             onClick={() => onViewNotes(video)}
             className={`flex items-center gap-2 px-4 py-2 rounded-full text-xs font-bold transition-all border ${hasNotes
-                ? 'bg-blue-600/10 text-blue-500 border-blue-600/20 hover:bg-blue-600 hover:text-white'
-                : 'bg-zinc-800 text-zinc-400 border-zinc-700 hover:bg-zinc-700 hover:text-white'
+              ? 'bg-blue-600/10 text-blue-500 border-blue-600/20 hover:bg-blue-600 hover:text-white'
+              : 'bg-zinc-800 text-zinc-400 border-zinc-700 hover:bg-zinc-700 hover:text-white'
               }`}
           >
             <Sparkles className="w-3.5 h-3.5" />
             {hasNotes ? 'Study Guide' : 'Generate Notes'}
+          </button>
+
+          <button
+            onClick={() => onTakeTest(video)}
+            disabled={!hasTest && !canAffordTest}
+            className={`flex items-center gap-2 px-4 py-2 rounded-full text-xs font-bold transition-all border ${hasTest
+              ? 'bg-purple-600/10 text-purple-500 border-purple-600/20 hover:bg-purple-600 hover:text-white hover:shadow-[0_0_15px_rgba(147,51,234,0.4)]'
+              : !canAffordTest
+                ? 'bg-zinc-800/50 text-zinc-600 border-zinc-800 cursor-not-allowed grayscale'
+                : 'bg-zinc-800 text-zinc-400 border-zinc-700 hover:bg-purple-600 hover:text-white hover:border-purple-600 hover:shadow-[0_0_15px_rgba(147,51,234,0.4)]'
+              }`}
+          >
+            <Brain className="w-3.5 h-3.5" />
+            {hasTest ? 'Knowledge Test' : 'Take Test'}
           </button>
 
           {/* 

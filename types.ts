@@ -70,3 +70,29 @@ export interface YTAPIResponse {
     message: string;
   };
 }
+
+export interface Question {
+  question: string;
+  options: string[];
+  correctAnswer: number;
+  explanation: string;
+}
+
+export interface VideoTest {
+  videoId: string;
+  playlistId: string;
+  questions: Question[];
+  createdAt: number;
+}
+
+export interface TestResult {
+  videoId: string;
+  playlistId: string;
+  score: number;
+  totalQuestions: number;
+  userAnswers: number[];
+  createdAt: number;
+  performanceLevel?: 'Needs Improvement' | 'Good' | 'Excellent';
+}
+
+
