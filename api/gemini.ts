@@ -27,12 +27,12 @@ export default async function handler(
             });
         }
 
-        const API_KEY = process.env.GEMINI_API_KEY;
+        const API_KEY = process.env.GEMINI_API_KEY?.trim();
 
-        if (!API_KEY) {
-            console.error('GEMINI_API_KEY not configured');
+        if (!API_KEY || API_KEY.includes('REPLACE')) {
+            console.error('GEMINI_API_KEY not configured or still using placeholder');
             return response.status(500).json({
-                error: 'Gemini API Key is not configured on the server.',
+                error: 'Gemini API Key is not configured correctly on the server.',
             });
         }
 
@@ -44,14 +44,11 @@ export default async function handler(
             const transcript = await YoutubeTranscript.fetchTranscript(videoId);
             transcriptText = transcript.map(item => item.text).join(' ');
 
-            // Limit transcript length to avoid context window issues
             if (transcriptText.length > 30000) {
                 transcriptText = transcriptText.substring(0, 30000) + '...';
             }
         } catch (error) {
-            console.warn('Could not fetch transcript, attempting fallback to description:', error);
-
-            // Fallback: Fetch video description from YouTube API
+            console.warn('Transcript fetch failed, trying description fallback:', error);
             const YT_API_KEY = process.env.YOUTUBE_API_KEY;
             if (YT_API_KEY) {
                 try {
@@ -99,7 +96,7 @@ Return output strictly in this JSON format:
 
 ${transcriptText ? `Source Content:\n${transcriptText}` : `No transcript or description available. Please generate relevant academic questions based ONLY on the title: "${videoTitle}" ${channelTitle ? `and channel: "${channelTitle}"` : ''}. If the topic is clear, create foundational questions about it.`}`;
 
-        const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${API_KEY}`;
+        const geminiUrl = `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${API_KEY}`;
 
         const geminiResponse = await fetch(geminiUrl, {
             method: 'POST',
