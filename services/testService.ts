@@ -45,12 +45,12 @@ export const testService = {
     },
 
     /**
-     * Generate a test using Gemini API
+     * Generate a test using Groq API
      */
     async generateTest(userId: string, videoId: string, videoTitle: string, channelTitle: string, playlistId: string): Promise<Question[]> {
-        console.log('🤖 Calling Gemini API to generate test...');
+        console.log('🤖 Calling Groq API to generate test...');
 
-        const response = await fetch('/api/gemini', {
+        const response = await fetch('/api/groq', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -59,6 +59,7 @@ export const testService = {
                 videoId,
                 videoTitle,
                 channelTitle,
+                mode: 'test'
             }),
         });
 

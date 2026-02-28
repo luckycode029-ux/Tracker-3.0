@@ -49,6 +49,7 @@ export async function generateVideoNotes(
         videoId,
         videoTitle,
         channelTitle,
+        mode: 'notes'
       }),
     });
 
