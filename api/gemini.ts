@@ -19,7 +19,7 @@ export default async function handler(
     }
 
     try {
-        const { videoId, videoTitle } = request.body;
+        const { videoId, videoTitle, channelTitle } = request.body;
 
         if (!videoId || !videoTitle) {
             return response.status(400).json({
@@ -36,35 +36,52 @@ export default async function handler(
             });
         }
 
-        // Fetch transcript
+        // Fetch transcript with fallback to description
         let transcriptText = '';
+        let isUsingDescription = false;
+
         try {
             const transcript = await YoutubeTranscript.fetchTranscript(videoId);
             transcriptText = transcript.map(item => item.text).join(' ');
 
-            // Limit transcript length to avoid context window issues (Gemini supports more, but keep it reasonable)
+            // Limit transcript length to avoid context window issues
             if (transcriptText.length > 30000) {
                 transcriptText = transcriptText.substring(0, 30000) + '...';
             }
         } catch (error) {
-            console.warn('Could not fetch transcript:', error);
-            return response.status(400).json({
-                error: 'Could not fetch transcript for this video. Test cannot be generated.',
-            });
+            console.warn('Could not fetch transcript, attempting fallback to description:', error);
+
+            // Fallback: Fetch video description from YouTube API
+            const YT_API_KEY = process.env.YOUTUBE_API_KEY;
+            if (YT_API_KEY) {
+                try {
+                    const ytRes = await fetch(`https://www.googleapis.com/youtube/v3/videos?part=snippet&id=${videoId}&key=${YT_API_KEY}`);
+                    const ytData = await ytRes.json();
+                    const description = ytData.items?.[0]?.snippet?.description;
+                    if (description && description.length > 100) {
+                        transcriptText = `[NOTE: Transcript unavailable. Using video description as source]\n\nDESCRIPTION:\n${description}`;
+                        isUsingDescription = true;
+                    }
+                } catch (ytErr) {
+                    console.error('YouTube API fallback failed:', ytErr);
+                }
+            }
         }
 
+        const promptSource = transcriptText
+            ? (isUsingDescription ? 'video description' : 'YouTube lecture transcript')
+            : 'video title and channel (no transcript available)';
+
         const prompt = `You are an expert academic evaluator.
-Using the following YouTube lecture transcript for a video titled "${videoTitle}", generate exactly 10 multiple choice questions (MCQs) that test conceptual understanding.
+Using the following ${promptSource} for a video titled "${videoTitle}" ${channelTitle ? `by "${channelTitle}"` : ''}, generate exactly 10 multiple choice questions (MCQs) that test conceptual understanding.
 
 Rules:
 - Difficulty: Medium
 - Avoid trivial fact recall (like dates, names unless conceptually important)
-- Avoid extremely advanced or derivation-heavy questions
 - Questions must test whether the student understood key ideas, logic, relationships, and reasoning
 - Each question must have exactly 4 options
 - Only 1 correct answer per question
 - No ambiguous wording
-- Do not include answers outside transcript content
 - Do not repeat similar question types
 - Mix conceptual and application-based questions
 
@@ -80,8 +97,7 @@ Return output strictly in this JSON format:
   ]
 }
 
-Transcript:
-${transcriptText}`;
+${transcriptText ? `Source Content:\n${transcriptText}` : `No transcript or description available. Please generate relevant academic questions based ONLY on the title: "${videoTitle}" ${channelTitle ? `and channel: "${channelTitle}"` : ''}. If the topic is clear, create foundational questions about it.`}`;
 
         const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${API_KEY}`;
 

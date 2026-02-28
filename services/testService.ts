@@ -47,7 +47,7 @@ export const testService = {
     /**
      * Generate a test using Gemini API
      */
-    async generateTest(userId: string, videoId: string, videoTitle: string, playlistId: string): Promise<Question[]> {
+    async generateTest(userId: string, videoId: string, videoTitle: string, channelTitle: string, playlistId: string): Promise<Question[]> {
         console.log('🤖 Calling Gemini API to generate test...');
 
         const response = await fetch('/api/gemini', {
@@ -58,6 +58,7 @@ export const testService = {
             body: JSON.stringify({
                 videoId,
                 videoTitle,
+                channelTitle,
             }),
         });
 

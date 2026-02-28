@@ -577,6 +577,7 @@ const App: React.FC = () => {
         user.id,
         testVideo.id,
         testVideo.title,
+        testVideo.channelTitle,
         activePlaylistId
       );
 
